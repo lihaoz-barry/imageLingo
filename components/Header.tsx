@@ -3,13 +3,14 @@ import { LogIn, User, History, Wallet } from 'lucide-react';
 interface HeaderProps {
   isLoggedIn?: boolean;
   userAvatar?: string;
+  userEmail?: string;
   onLogin?: () => void;
   onHistoryClick?: () => void;
   onBillingClick?: () => void;
   tokenBalance?: number;
 }
 
-export function Header({ isLoggedIn = false, userAvatar, onLogin, onHistoryClick, onBillingClick, tokenBalance }: HeaderProps) {
+export function Header({ isLoggedIn = false, userAvatar, userEmail, onLogin, onHistoryClick, onBillingClick, tokenBalance }: HeaderProps) {
   return (
     <header className="w-full flex items-start justify-between p-8 pb-4">
       <div>
@@ -48,10 +49,14 @@ export function Header({ isLoggedIn = false, userAvatar, onLogin, onHistoryClick
           onClick={onLogin}
           className="flex items-center gap-2 px-6 py-3 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105"
         >
-          {isLoggedIn && userAvatar ? (
+          {isLoggedIn ? (
             <>
-              <img src={userAvatar} alt="User" className="w-5 h-5 rounded-full" />
-              <span>Profile</span>
+              {userAvatar ? (
+                <img src={userAvatar} alt="User" className="w-5 h-5 rounded-full" />
+              ) : (
+                <User className="w-4 h-4" />
+              )}
+              <span className="max-w-[120px] truncate">{userEmail || 'Account'}</span>
             </>
           ) : (
             <>
