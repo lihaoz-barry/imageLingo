@@ -45,11 +45,12 @@ export async function authenticateRequest(
       authenticated: true,
       userId: user.id,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
     console.error('Authentication error:', error);
     return {
       authenticated: false,
-      error: error?.message || 'Authentication failed',
+      error: errorMessage,
     };
   }
 }

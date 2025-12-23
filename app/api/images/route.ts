@@ -117,18 +117,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate file extension
+    // Validate file type (both extension and MIME type)
     const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml',
+    ];
+    
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     if (!fileExt || !allowedExtensions.includes(fileExt)) {
       return Response.json(
-        { error: 'Invalid file type. Allowed: jpg, jpeg, png, gif, webp, svg' },
+        { error: 'Invalid file extension. Allowed: jpg, jpeg, png, gif, webp, svg' },
         { status: 400 }
       );
     }
 
-    // Generate unique file path
-    const fileName = `${userId}/${projectId}/${Date.now()}.${fileExt}`;
+    if (!allowedMimeTypes.includes(file.type)) {
+      return Response.json(
+        { error: 'Invalid MIME type. File must be a valid image.' },
+        { status: 400 }
+      );
+    }
+
+    // Generate unique file path with UUID for collision prevention
+    const uniqueId = crypto.randomUUID();
+    const fileName = `${userId}/${projectId}/${uniqueId}.${fileExt}`;
 
     // Upload to Supabase Storage
     const { data: storageData, error: storageError } = await supabase.storage
