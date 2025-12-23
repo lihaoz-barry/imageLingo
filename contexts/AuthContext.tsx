@@ -1,17 +1,17 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import {
-    User,
-    signInWithPopup,
-    GoogleAuthProvider,
-    signOut as firebaseSignOut,
-    onAuthStateChanged
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { createContext, useContext, useState, ReactNode } from 'react';
+
+// Mock user type (simplified from Firebase User)
+interface MockUser {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+}
 
 interface AuthContextType {
-    user: User | null;
+    user: MockUser | null;
     loading: boolean;
     signInWithGoogle: () => Promise<void>;
     signOut: () => Promise<void>;
@@ -19,7 +19,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
-    loading: true,
+    loading: false,
     signInWithGoogle: async () => { },
     signOut: async () => { }
 });
@@ -27,35 +27,21 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
-            setLoading(false);
-        });
-
-        return unsubscribe;
-    }, []);
+    const [user, setUser] = useState<MockUser | null>(null);
+    const [loading] = useState(false);
 
     const signInWithGoogle = async () => {
-        const provider = new GoogleAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error('Error signing in with Google:', error);
-            throw error;
-        }
+        // Mock sign in - creates a demo user
+        setUser({
+            uid: 'demo-user-123',
+            email: 'demo@imagelingo.com',
+            displayName: 'Demo User',
+            photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo'
+        });
     };
 
     const signOut = async () => {
-        try {
-            await firebaseSignOut(auth);
-        } catch (error) {
-            console.error('Error signing out:', error);
-            throw error;
-        }
+        setUser(null);
     };
 
     return (
@@ -64,3 +50,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         </AuthContext.Provider>
     );
 }
+
