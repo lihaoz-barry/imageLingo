@@ -31,6 +31,7 @@ export default function TaskList() {
         try {
             setLoading(true);
             const supabase = getSupabaseClient();
+            if (!supabase) return;
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
 
@@ -63,6 +64,7 @@ export default function TaskList() {
 
         try {
             const supabase = getSupabaseClient();
+            if (!supabase) return;
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             const response = await fetch(

@@ -87,6 +87,9 @@ export default function ImageUpload({ onUploadComplete }: ImageUploadProps) {
 
             // Get auth token from Supabase session
             const supabase = getSupabaseClient();
+            if (!supabase) {
+                throw new Error('Supabase not configured');
+            }
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
             if (!token) {
