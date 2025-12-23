@@ -1,0 +1,7 @@
+# Shared code for Edge Functions
+# Files in _shared are not deployed as functions but can be imported by them.
+#
+# Example shared files:
+#   - cors.ts      : CORS headers configuration
+#   - supabase.ts  : Supabase client initialization
+#   - types.ts     : Shared TypeScript types

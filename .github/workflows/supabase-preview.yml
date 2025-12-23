@@ -1,0 +1,69 @@
+name: Supabase Preview Branch
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    branches:
+      - main
+    paths:
+      - 'supabase/**'
+
+jobs:
+  # Wait for Supabase preview branch to be ready
+  wait-for-preview:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.check.outputs.conclusion }}
+    steps:
+      - name: Wait for Supabase Preview
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: check
+        with:
+          checkName: Supabase Preview
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeoutSeconds: 600
+
+  # Run after preview branch is ready (for custom migrations/seeds if needed)
+  post-preview:
+    needs: wait-for-preview
+    if: ${{ needs.wait-for-preview.outputs.status == 'success' }}
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Get preview branch credentials
+        run: |
+          supabase --experimental branches get "$GITHUB_HEAD_REF" -o env >> $GITHUB_ENV
+
+      - name: Preview branch ready
+        run: |
+          echo "Preview branch is ready!"
+          echo "Branch: $GITHUB_HEAD_REF"
+          # Add any post-preview setup commands here
+
+  # Notify on failure
+  notify-failure:
+    needs: wait-for-preview
+    if: ${{ needs.wait-for-preview.outputs.status == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preview branch failed
+        run: |
+          echo "Supabase preview branch failed to deploy"
+          echo "Check the Supabase dashboard for more details"
+          exit 1

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseClient } from '@/lib/supabase';
 
 interface UploadProgress {
     stage: 'idle' | 'uploading' | 'extracting' | 'translating' | 'complete' | 'error';
@@ -84,8 +85,13 @@ export default function ImageUpload({ onUploadComplete }: ImageUploadProps) {
             setProgress({ stage: 'uploading', percent: 10, message: 'Uploading image...' });
             setResult(null);
 
-            // Get auth token
-            const token = await user?.getIdToken();
+            // Get auth token from Supabase session
+            const supabase = getSupabaseClient();
+            if (!supabase) {
+                throw new Error('Supabase not configured');
+            }
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
             if (!token) {
                 throw new Error('Not authenticated');
             }
