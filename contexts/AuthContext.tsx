@@ -8,6 +8,7 @@ interface MockUser {
     email: string | null;
     displayName: string | null;
     photoURL: string | null;
+    getIdToken: () => Promise<string>;
 }
 
 interface AuthContextType {
@@ -36,7 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             uid: 'demo-user-123',
             email: 'demo@imagelingo.com',
             displayName: 'Demo User',
-            photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo'
+            photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo',
+            getIdToken: async () => 'mock-id-token'
         });
     };
 
