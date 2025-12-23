@@ -1,55 +1,87 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
-
-// Mock user type (simplified from Firebase User)
-interface MockUser {
-    uid: string;
-    email: string | null;
-    displayName: string | null;
-    photoURL: string | null;
-    getIdToken: () => Promise<string>;
-}
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, Session, AuthError } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase';
 
 interface AuthContextType {
-    user: MockUser | null;
-    loading: boolean;
-    signInWithGoogle: () => Promise<void>;
-    signOut: () => Promise<void>;
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
-    user: null,
-    loading: false,
-    signInWithGoogle: async () => { },
-    signOut: async () => { }
+  user: null,
+  session: null,
+  loading: true,
+  signUp: async () => ({ error: null }),
+  signIn: async () => ({ error: null }),
+  signOut: async () => { }
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<MockUser | null>(null);
-    const [loading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    const signInWithGoogle = async () => {
-        // Mock sign in - creates a demo user
-        setUser({
-            uid: 'demo-user-123',
-            email: 'demo@imagelingo.com',
-            displayName: 'Demo User',
-            photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo',
-            getIdToken: async () => 'mock-id-token'
-        });
-    };
+  useEffect(() => {
+    const supabase = getSupabaseClient();
 
-    const signOut = async () => {
-        setUser(null);
-    };
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    return (
-        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
-            {children}
-        </AuthContext.Provider>
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
     );
-}
 
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signUp = async (email: string, password: string) => {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`
+      }
+    });
+    return { error };
+  };
+
+  const signIn = async (email: string, password: string) => {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    return { error };
+  };
+
+  const signOut = async () => {
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
