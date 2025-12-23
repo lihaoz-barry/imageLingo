@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseClient } from '@/lib/supabase';
 
 interface Task {
     id: string;
@@ -29,7 +30,9 @@ export default function TaskList() {
 
         try {
             setLoading(true);
-            const token = await user.getIdToken();
+            const supabase = getSupabaseClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
 
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tasks`,
@@ -59,7 +62,9 @@ export default function TaskList() {
         if (!confirm('Delete this task?')) return;
 
         try {
-            const token = await user?.getIdToken();
+            const supabase = getSupabaseClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/tasks/${taskId}`,
                 {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
+import { AuthDialog } from '@/components/AuthDialog';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { UploadZoneWithShowcase } from '@/components/UploadZoneWithShowcase';
 import { ImageThumbnails, type ImageFile } from '@/components/ImageThumbnails';
@@ -40,9 +41,10 @@ const languageNames: { [key: string]: string } = {
 const COST_PER_IMAGE = 1; // 1 token per image variation
 
 export default function Home() {
-  const { user, signInWithGoogle, signOut } = useAuth();
+  const { user } = useAuth();
 
   // State
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(500);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
@@ -180,11 +182,7 @@ export default function Home() {
   };
 
   const handleLogin = () => {
-    if (user) {
-      signOut();
-    } else {
-      signInWithGoogle();
-    }
+    setIsAuthOpen(true);
   };
 
   const handleLoadHistory = (item: HistoryItem) => {
@@ -243,12 +241,14 @@ export default function Home() {
     <div className="min-h-screen circuit-pattern">
       <Header
         isLoggedIn={!!user}
-        userAvatar={user?.photoURL || undefined}
+        userAvatar={user?.user_metadata?.avatar_url || undefined}
         onLogin={handleLogin}
         onHistoryClick={() => setIsHistoryOpen(true)}
         onBillingClick={() => setIsBillingOpen(true)}
         tokenBalance={tokenBalance}
       />
+
+      <AuthDialog open={isAuthOpen} onOpenChange={setIsAuthOpen} />
 
       <HistoryPanel
         isOpen={isHistoryOpen}
