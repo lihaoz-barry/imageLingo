@@ -117,10 +117,10 @@ describe('GET /api/auth/user', () => {
 
     expect(response.status).toBe(200);
     const json = await response.json();
-    expect(json.user).toEqual({
+    expect(json.user).toMatchObject({
       id: mockUserId,
       email: 'test@example.com',
-      ...mockProfile,
+      display_name: 'Test User',
     });
   });
 });

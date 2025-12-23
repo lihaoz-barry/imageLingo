@@ -107,10 +107,7 @@ export async function DELETE(
       );
     }
 
-    // Delete from storage
-    await supabase.storage.from('images').remove([image.storage_path]);
-
-    // Delete from database
+    // Delete from database first
     const { error: deleteError } = await supabase
       .from('images')
       .delete()
@@ -121,6 +118,14 @@ export async function DELETE(
         { error: 'Failed to delete image' },
         { status: 500 }
       );
+    }
+
+    // Delete from storage (best effort)
+    try {
+      await supabase.storage.from('images').remove([image.storage_path]);
+    } catch (storageError) {
+      console.error('Failed to delete image from storage:', storageError);
+      // Continue - database record is already deleted
     }
 
     return Response.json({ message: 'Image deleted successfully' });

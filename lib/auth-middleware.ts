@@ -45,10 +45,11 @@ export async function authenticateRequest(
       authenticated: true,
       userId: user.id,
     };
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Authentication error:', error);
     return {
       authenticated: false,
-      error: 'Authentication failed',
+      error: error?.message || 'Authentication failed',
     };
   }
 }

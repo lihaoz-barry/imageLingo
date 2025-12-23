@@ -71,7 +71,7 @@ describe('auth-middleware', () => {
       const result = await authenticateRequest(req);
 
       expect(result.authenticated).toBe(false);
-      expect(result.error).toBe('Authentication failed');
+      expect(result.error).toBe('Connection failed');
     });
   });
 

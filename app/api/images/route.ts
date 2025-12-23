@@ -117,8 +117,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate file extension
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt || !allowedExtensions.includes(fileExt)) {
+      return Response.json(
+        { error: 'Invalid file type. Allowed: jpg, jpeg, png, gif, webp, svg' },
+        { status: 400 }
+      );
+    }
+
     // Generate unique file path
-    const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${projectId}/${Date.now()}.${fileExt}`;
 
     // Upload to Supabase Storage
@@ -152,7 +161,11 @@ export async function POST(req: NextRequest) {
 
     if (dbError) {
       // Cleanup storage if DB insert fails
-      await supabase.storage.from('images').remove([storageData.path]);
+      try {
+        await supabase.storage.from('images').remove([storageData.path]);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup storage after DB error:', cleanupError);
+      }
       return Response.json(
         { error: 'Failed to create image record' },
         { status: 500 }
