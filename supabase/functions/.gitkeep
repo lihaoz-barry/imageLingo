@@ -1,0 +1,8 @@
+# This file keeps the functions directory in git.
+# Add your Supabase Edge Functions here.
+#
+# To create a new function:
+#   supabase functions new my-function
+#
+# To deploy:
+#   supabase functions deploy my-function
