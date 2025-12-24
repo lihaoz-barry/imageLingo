@@ -262,7 +262,10 @@ export default function Home() {
       setResults(processedResults);
       setTokenBalance((prev) => prev - actualCost);
       setProgress(100);
-      setProgressStatus(`Translation complete! Processed ${processedResults.length} image(s) with ${actualCost} variation(s).`);
+      
+      // Count total variations across all processed images
+      const totalVariations = processedResults.reduce((sum, result) => sum + result.variations.length, 0);
+      setProgressStatus(`Translation complete! Processed ${processedResults.length} image(s) with ${totalVariations} variation(s).`);
 
       // Add to history (only if we have results)
       if (processedResults.length > 0) {
@@ -295,11 +298,6 @@ export default function Home() {
       const message = error instanceof Error ? error.message : 'Unknown error';
       setProgressStatus(`Error: ${message}`);
       alert(`Translation failed: ${message}`);
-      
-      // Refund tokens for any that weren't actually used
-      if (actualCost < totalCost) {
-        setTokenBalance((prev) => prev + (totalCost - actualCost));
-      }
     } finally {
       setIsProcessing(false);
     }
