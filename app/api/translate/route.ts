@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { translateImage, GeminiError } from '@/lib/gemini';
 import { getTranslationPrompt, PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName } from '@/lib/prompts';
 
+const CREDITS_PER_TRANSLATION = 1;
+
 /**
  * POST /api/translate
  * Process an image translation using Gemini API
@@ -12,13 +14,15 @@ import { getTranslationPrompt, PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName 
  *
  * Flow:
  * 1. Authenticate + verify ownership
- * 2. Fetch generation (must be 'pending')
- * 3. Update status → 'processing'
- * 4. Fetch input image from Supabase Storage
- * 5. Call Gemini API with image + prompt
- * 6. Upload output image to Storage
- * 7. Create output image record
- * 8. Update generation: status='completed', output_image_id
+ * 2. Check if user has enough credits
+ * 3. Fetch generation (must be 'pending')
+ * 4. Update status → 'processing'
+ * 5. Fetch input image from Supabase Storage
+ * 6. Call Gemini API with image + prompt
+ * 7. Upload output image to Storage
+ * 8. Create output image record
+ * 9. Update generation: status='completed', output_image_id
+ * 10. Deduct credits from user's subscription
  */
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -44,6 +48,28 @@ export async function POST(req: NextRequest) {
       return Response.json(
         { error: 'Supabase not configured' },
         { status: 500 }
+      );
+    }
+
+    // Check user's credits before processing
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (subError || !subscription) {
+      return Response.json(
+        { error: 'Subscription not found. Please refresh the page.' },
+        { status: 402 }
+      );
+    }
+
+    const creditsBalance = subscription.generations_limit - subscription.generations_used;
+    if (creditsBalance < CREDITS_PER_TRANSLATION) {
+      return Response.json(
+        { error: `Insufficient credits. You have ${creditsBalance} credits but need ${CREDITS_PER_TRANSLATION}.` },
+        { status: 402 }
       );
     }
 
@@ -162,6 +188,7 @@ export async function POST(req: NextRequest) {
         output_image_id: outputImage.id,
         model_used: `gemini-3-pro-image-preview (prompt v${PROMPT_VERSION})`,
         processing_ms: processingMs,
+        tokens_used: CREDITS_PER_TRANSLATION,
       })
       .eq('id', generationId)
       .select()
@@ -171,16 +198,33 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to update generation record');
     }
 
+    // Deduct credits from user's subscription
+    const { error: creditError } = await supabase
+      .from('subscriptions')
+      .update({
+        generations_used: subscription.generations_used + CREDITS_PER_TRANSLATION,
+      })
+      .eq('user_id', userId);
+
+    if (creditError) {
+      console.error('Failed to deduct credits:', creditError);
+      // Don't fail the request since the translation succeeded
+    }
+
     // Get signed URLs for input and output images
     const [inputUrlResult, outputUrlResult] = await Promise.all([
       supabase.storage.from('images').createSignedUrl(inputImage.storage_path, 3600),
       supabase.storage.from('images').createSignedUrl(outputPath, 3600),
     ]);
 
+    // Calculate new credits balance
+    const newCreditsBalance = subscription.generations_limit - subscription.generations_used - CREDITS_PER_TRANSLATION;
+
     return Response.json({
       generation: updatedGeneration,
       input_url: inputUrlResult.data?.signedUrl || null,
       output_url: outputUrlResult.data?.signedUrl || null,
+      credits_balance: newCreditsBalance,
     });
   } catch (error: unknown) {
     console.error('Translation error:', error);
