@@ -99,6 +99,7 @@ describe('GET /api/generations', () => {
         return {};
       }),
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
     const req = new NextRequest('http://localhost:3000/api/generations?project_id=proj-1');
@@ -199,6 +200,7 @@ describe('POST /api/generations', () => {
         return {};
       }),
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
     const req = new NextRequest('http://localhost:3000/api/generations', {

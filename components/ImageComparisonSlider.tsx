@@ -16,6 +16,7 @@ export function ImageComparisonSlider({
 }: ImageComparisonSliderProps) {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMove = (clientX: number) => {
@@ -37,6 +38,17 @@ export function ImageComparisonSlider({
   const handleTouchMove = (e: TouchEvent) => {
     if (isDragging && e.touches[0]) handleMove(e.touches[0].clientX);
   };
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   useEffect(() => {
     if (isDragging) {
@@ -83,7 +95,7 @@ export function ImageComparisonSlider({
           src={beforeImage}
           alt={beforeLabel}
           className="w-full h-full object-cover"
-          style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : '100%' }}
+          style={{ width: containerWidth ? `${containerWidth}px` : '100%' }}
           draggable={false}
         />
         <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#8b5cf6]/90 text-white text-sm shadow-lg">

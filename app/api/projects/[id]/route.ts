@@ -38,9 +38,10 @@ export async function GET(
     }
 
     return Response.json({ project });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return Response.json(
-      { error: error.message || 'Internal server error' },
+      { error: message },
       { status: 500 }
     );
   }
@@ -62,7 +63,7 @@ export async function PATCH(
     const body = await req.json();
     const { name, description } = body;
 
-    const updates: any = {};
+    const updates: Record<string, string | null> = {};
     if (name !== undefined) {
       if (typeof name !== 'string' || name.trim().length === 0) {
         return Response.json(
@@ -107,9 +108,10 @@ export async function PATCH(
     }
 
     return Response.json({ project });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return Response.json(
-      { error: error.message || 'Internal server error' },
+      { error: message },
       { status: 500 }
     );
   }
@@ -150,9 +152,10 @@ export async function DELETE(
     }
 
     return Response.json({ message: 'Project deleted successfully' });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return Response.json(
-      { error: error.message || 'Internal server error' },
+      { error: message },
       { status: 500 }
     );
   }
