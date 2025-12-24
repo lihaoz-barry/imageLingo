@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Dev Server",
+            "type": "npm",
+            "script": "dev",
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": {
+                    "regexp": "^[\\t\\s]*✓ Ready in [0-9]+ms$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*Starting...*",
+                    "endsPattern": ".*Ready in.*"
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}
