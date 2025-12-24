@@ -135,6 +135,14 @@ export default function Home() {
       return;
     }
 
+    // Validate reasonable task limits to prevent excessive processing
+    const MAX_TOTAL_TASKS = 50; // Maximum 50 total variations to prevent timeouts
+    const totalRequestedTasks = images.length * variationsPerImage;
+    if (totalRequestedTasks > MAX_TOTAL_TASKS) {
+      alert(`Too many variations requested! Please reduce the number of images or variations per image. Maximum: ${MAX_TOTAL_TASKS} total variations.`);
+      return;
+    }
+
     setIsProcessing(true);
     setProgress(0);
     setResults([]);
@@ -142,6 +150,7 @@ export default function Home() {
 
     const processedResults: ProcessedImageWithVariations[] = [];
     let actualCost = 0; // Track actual cost for images that were successfully processed
+    let failedVariations = 0; // Track failed variations for user feedback
 
     try {
       // Ensure we have a project
@@ -152,7 +161,6 @@ export default function Home() {
 
       // Process all selected images
       let completedTasks = 0;
-      const totalRequestedTasks = images.length * variationsPerImage;
 
       for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
         const imageFile = images[imageIndex];
@@ -240,6 +248,7 @@ export default function Home() {
               setProgress(Math.round((completedTasks / totalRequestedTasks) * 100));
             } catch (varError) {
               console.error(`Error creating variation ${varIndex + 1} for image "${imageFile.name}" (${imageIndex + 1}/${images.length}):`, varError);
+              failedVariations++;
               // Continue with next variation instead of failing completely
             }
           }
@@ -271,10 +280,17 @@ export default function Home() {
       
       // Count total variations across all processed images
       const totalVariations = processedResults.reduce((sum, result) => sum + result.variations.length, 0);
-      setProgressStatus(`Translation complete! Processed ${processedResults.length} image(s) with ${totalVariations} variation(s).`);
+      let statusMessage = `Translation complete! Processed ${processedResults.length} image(s) with ${totalVariations} variation(s).`;
+      
+      // Inform user about partial failures and token charges
+      if (failedVariations > 0) {
+        statusMessage += ` (${failedVariations} variation(s) failed - no tokens charged for failures)`;
+      }
+      
+      setProgressStatus(statusMessage);
 
-      // Add to history (only if we have results)
-      if (processedResults.length > 0) {
+      // Add to history (only if we have results with valid variations)
+      if (processedResults.length > 0 && processedResults.every(r => r.variations.length > 0)) {
         const historyItem: HistoryItem = {
           id: Date.now().toString(),
           date: new Date().toLocaleString('en-US', {
