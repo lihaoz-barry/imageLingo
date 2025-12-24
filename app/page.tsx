@@ -140,6 +140,9 @@ export default function Home() {
     setResults([]);
     setProgressStatus('Initializing...');
 
+    const processedResults: ProcessedImageWithVariations[] = [];
+    let actualCost = 0; // Track actual cost for images that were successfully processed
+
     try {
       // Ensure we have a project
       const projId = await ensureProject();
@@ -147,126 +150,156 @@ export default function Home() {
         throw new Error('Failed to create or fetch project');
       }
 
-      // For now, process only the first image (single image flow)
-      // Multi-image support can be added later
-      const imageFile = images[0];
-      if (!imageFile) {
-        throw new Error('No image selected');
+      // Process all selected images
+      const totalTasks = images.length * variationsPerImage;
+      let completedTasks = 0;
+
+      for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
+        const imageFile = images[imageIndex];
+        
+        setProgressStatus(`Processing image ${imageIndex + 1}/${images.length}: ${imageFile.name}...`);
+        
+        try {
+          // Step 1: Upload image
+          setProgressStatus(`Uploading image ${imageIndex + 1}/${images.length}...`);
+          const formData = new FormData();
+          formData.append('file', imageFile.file);
+          formData.append('project_id', projId);
+
+          const uploadRes = await fetch('/api/images', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!uploadRes.ok) {
+            const error = await uploadRes.json();
+            throw new Error(error.error || 'Failed to upload image');
+          }
+
+          const { image: uploadedImage } = await uploadRes.json();
+          
+          // Generate multiple variations for this image
+          const variations = [];
+          
+          for (let varIndex = 0; varIndex < variationsPerImage; varIndex++) {
+            setProgressStatus(`Creating variation ${varIndex + 1}/${variationsPerImage} for image ${imageIndex + 1}/${images.length}...`);
+            
+            try {
+              // Step 2: Create generation for this variation
+              const genRes = await fetch('/api/generations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  project_id: projId,
+                  type: 'translation',
+                  input_image_id: uploadedImage.id,
+                  source_language: sourceLanguage,
+                  target_language: targetLanguage,
+                }),
+              });
+
+              if (!genRes.ok) {
+                const error = await genRes.json();
+                throw new Error(error.error || 'Failed to create generation');
+              }
+
+              const { generation: newGeneration } = await genRes.json();
+
+              // Step 3: Start translation
+              const translateRes = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  generation_id: newGeneration.id,
+                }),
+              });
+
+              if (!translateRes.ok) {
+                const error = await translateRes.json();
+                throw new Error(error.error || 'Translation failed');
+              }
+
+              const translateData = await translateRes.json();
+
+              // Add variation to the list
+              variations.push({
+                id: `${imageFile.id}-var-${varIndex}`,
+                url: translateData.output_url || '',
+                variationNumber: varIndex + 1,
+              });
+
+              // Only increment actual cost for successfully processed variations
+              actualCost += COST_PER_IMAGE;
+              completedTasks++;
+              setProgress(Math.round((completedTasks / totalTasks) * 100));
+            } catch (varError) {
+              console.error(`Error creating variation ${varIndex + 1} for image ${imageIndex + 1}:`, varError);
+              // Continue with next variation instead of failing completely
+            }
+          }
+
+          // Only add result if we have at least one successful variation
+          if (variations.length > 0) {
+            const newResult: ProcessedImageWithVariations = {
+              id: imageFile.id,
+              originalName: imageFile.name,
+              sourceLanguage: languageNames[sourceLanguage] || 'Auto',
+              targetLanguage: languageNames[targetLanguage] || 'Spanish',
+              originalUrl: uploadedImage.storage_path || imageFile.preview,
+              variations,
+              selectedVariationId: variations[0].id,
+            };
+
+            processedResults.push(newResult);
+          }
+        } catch (imageError) {
+          console.error(`Error processing image ${imageIndex + 1}:`, imageError);
+          // Continue with next image instead of failing completely
+        }
       }
 
-      setProgress(5);
-      setProgressStatus('Uploading image...');
-
-      // Step 1: Upload image
-      const formData = new FormData();
-      formData.append('file', imageFile.file);
-      formData.append('project_id', projId);
-
-      const uploadRes = await fetch('/api/images', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadRes.ok) {
-        const error = await uploadRes.json();
-        throw new Error(error.error || 'Failed to upload image');
-      }
-
-      const { image: uploadedImage } = await uploadRes.json();
-      setProgress(15);
-      setProgressStatus('Creating translation task...');
-
-      // Step 2: Create generation
-      const genRes = await fetch('/api/generations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projId,
-          type: 'translation',
-          input_image_id: uploadedImage.id,
-          source_language: sourceLanguage,
-          target_language: targetLanguage,
-        }),
-      });
-
-      if (!genRes.ok) {
-        const error = await genRes.json();
-        throw new Error(error.error || 'Failed to create generation');
-      }
-
-      const { generation: newGeneration } = await genRes.json();
-      setProgress(20);
-      setProgressStatus('Starting translation...');
-
-      // Step 3: Start translation
-      const translateRes = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          generation_id: newGeneration.id,
-        }),
-      });
-
-      if (!translateRes.ok) {
-        const error = await translateRes.json();
-        throw new Error(error.error || 'Translation failed');
-      }
-
-      const translateData = await translateRes.json();
-
-      // Translation completed successfully (synchronous for now)
-      const newResult: ProcessedImageWithVariations = {
-        id: imageFile.id,
-        originalName: imageFile.name,
-        sourceLanguage: languageNames[sourceLanguage] || 'Auto',
-        targetLanguage: languageNames[targetLanguage] || 'Spanish',
-        originalUrl: translateData.input_url || imageFile.preview,
-        variations: [
-          {
-            id: `${imageFile.id}-var-0`,
-            url: translateData.output_url || '',
-            variationNumber: 1,
-          },
-        ],
-        selectedVariationId: `${imageFile.id}-var-0`,
-      };
-
-      setResults([newResult]);
-      setTokenBalance((prev) => prev - totalCost);
+      // Update results and deduct only the actual cost
+      setResults(processedResults);
+      setTokenBalance((prev) => prev - actualCost);
       setProgress(100);
-      setProgressStatus('Translation complete!');
+      setProgressStatus(`Translation complete! Processed ${processedResults.length} image(s) with ${actualCost} variation(s).`);
 
-      // Add to history
-      const historyItem: HistoryItem = {
-        id: Date.now().toString(),
-        date: new Date().toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        images: [
-          {
-            id: newResult.id,
-            originalName: newResult.originalName,
-            sourceLanguage: newResult.sourceLanguage,
-            targetLanguage: newResult.targetLanguage,
-            originalUrl: newResult.originalUrl,
-            processedUrl: newResult.variations[0].url,
-          },
-        ],
-        sourceLanguage: languageNames[sourceLanguage] || 'Auto',
-        targetLanguage: languageNames[targetLanguage] || 'Spanish',
-        tokensUsed: totalCost,
-      };
+      // Add to history (only if we have results)
+      if (processedResults.length > 0) {
+        const historyItem: HistoryItem = {
+          id: Date.now().toString(),
+          date: new Date().toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          images: processedResults.map(result => ({
+            id: result.id,
+            originalName: result.originalName,
+            sourceLanguage: result.sourceLanguage,
+            targetLanguage: result.targetLanguage,
+            originalUrl: result.originalUrl,
+            processedUrl: result.variations[0].url,
+          })),
+          sourceLanguage: languageNames[sourceLanguage] || 'Auto',
+          targetLanguage: languageNames[targetLanguage] || 'Spanish',
+          tokensUsed: actualCost,
+        };
 
-      setHistory((prev) => [historyItem, ...prev]);
+        setHistory((prev) => [historyItem, ...prev]);
+      }
     } catch (error) {
       console.error('Translation error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
       setProgressStatus(`Error: ${message}`);
       alert(`Translation failed: ${message}`);
+      
+      // Refund tokens for any that weren't actually used
+      if (actualCost < totalCost) {
+        setTokenBalance((prev) => prev + (totalCost - actualCost));
+      }
     } finally {
       setIsProcessing(false);
     }
