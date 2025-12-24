@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     // Fetch generation with project and image info
     const { data: generation, error: fetchError } = await supabase
       .from('generations')
-      .select('*, projects!inner(owner_id), images:input_image_id(*)')
+      .select('*, projects!inner(owner_id), images!input_image_id(*)')
       .eq('id', generationId)
       .single();
 
