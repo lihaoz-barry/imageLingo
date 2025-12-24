@@ -152,6 +152,7 @@ export default function Home() {
 
       // Process all selected images
       let completedTasks = 0;
+      const totalRequestedTasks = images.length * variationsPerImage;
 
       for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
         const imageFile = images[imageIndex];
@@ -235,8 +236,7 @@ export default function Home() {
               actualCost += COST_PER_IMAGE;
               completedTasks++;
               
-              // Calculate progress based on completed vs total requested tasks
-              const totalRequestedTasks = images.length * variationsPerImage;
+              // Update progress
               setProgress(Math.round((completedTasks / totalRequestedTasks) * 100));
             } catch (varError) {
               console.error(`Error creating variation ${varIndex + 1} for image "${imageFile.name}" (${imageIndex + 1}/${images.length}):`, varError);
@@ -290,7 +290,7 @@ export default function Home() {
             sourceLanguage: result.sourceLanguage,
             targetLanguage: result.targetLanguage,
             originalUrl: result.originalUrl,
-            processedUrl: result.variations[0].url,
+            processedUrl: result.variations[0]?.url || '',
           })),
           sourceLanguage: languageNames[sourceLanguage] || 'Auto',
           targetLanguage: languageNames[targetLanguage] || 'Spanish',
