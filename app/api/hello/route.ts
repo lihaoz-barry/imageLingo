@@ -4,8 +4,14 @@ import { NextRequest, NextResponse } from 'next/server';
  * ImageLingo API Service
  * Placeholder class for Vercel functions
  */
+interface LocalizeData {
+    imageUrl?: string;
+    targetLanguage?: string;
+    options?: Record<string, unknown>;
+}
+
 class ImageLingoAPI {
-    async localize(data: any) {
+    async localize(_data: LocalizeData) {
         return {
             status: 'success',
             message: 'Image localization initiated (placeholder)',
@@ -30,8 +36,9 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const result = await api.localize(body);
         return NextResponse.json(result);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Internal server error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 

@@ -45,9 +45,10 @@ export async function GET(
     }
 
     return Response.json({ generation });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return Response.json(
-      { error: error.message || 'Internal server error' },
+      { error: message },
       { status: 500 }
     );
   }
@@ -100,7 +101,7 @@ export async function PATCH(
     }
 
     // Build update object
-    const updates: any = {};
+    const updates: Record<string, string | number | null> = {};
     if (status !== undefined) updates.status = status;
     if (output_text !== undefined) updates.output_text = output_text;
     if (output_image_id !== undefined) updates.output_image_id = output_image_id;
@@ -131,9 +132,10 @@ export async function PATCH(
     }
 
     return Response.json({ generation });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return Response.json(
-      { error: error.message || 'Internal server error' },
+      { error: message },
       { status: 500 }
     );
   }

@@ -34,6 +34,7 @@ describe('auth-middleware', () => {
           }),
         },
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
       const req = new NextRequest('http://localhost:3000/api/test');
@@ -53,6 +54,7 @@ describe('auth-middleware', () => {
           }),
         },
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
       const req = new NextRequest('http://localhost:3000/api/test');
@@ -100,6 +102,7 @@ describe('auth-middleware', () => {
           }),
         },
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
       const req = new NextRequest('http://localhost:3000/api/test');

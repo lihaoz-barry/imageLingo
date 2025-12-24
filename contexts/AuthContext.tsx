@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isConfigured) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Early return for unconfigured state is intentional
       setLoading(false);
       return;
     }

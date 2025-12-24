@@ -73,6 +73,7 @@ describe('GET /api/images', () => {
         return {};
       }),
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
     const req = new NextRequest('http://localhost:3000/api/images?project_id=proj-1');
@@ -136,6 +137,7 @@ describe('GET /api/images', () => {
         return {};
       }),
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
     const req = new NextRequest('http://localhost:3000/api/images?project_id=proj-1');
