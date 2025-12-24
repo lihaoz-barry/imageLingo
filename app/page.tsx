@@ -242,6 +242,7 @@ export default function Home() {
       <Header
         isLoggedIn={!!user}
         userAvatar={user?.user_metadata?.avatar_url || undefined}
+        userEmail={user?.email}
         onLogin={handleLogin}
         onHistoryClick={() => setIsHistoryOpen(true)}
         onBillingClick={() => setIsBillingOpen(true)}
