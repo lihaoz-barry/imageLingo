@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { AuthDialog } from '@/components/AuthDialog';
@@ -39,7 +39,8 @@ export default function Home() {
 
   // State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [tokenBalance, setTokenBalance] = useState(500);
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
   const [targetLanguage, setTargetLanguage] = useState('es');
@@ -55,6 +56,77 @@ export default function Home() {
 
   // Real API integration state
   const [projectId, setProjectId] = useState<string | null>(null);
+
+  // Fetch credits and history when user logs in
+  useEffect(() => {
+    if (user) {
+      fetchCredits();
+      fetchHistory();
+    } else {
+      setTokenBalance(0);
+      setHistory([]);
+    }
+  }, [user]);
+
+  const fetchCredits = async () => {
+    try {
+      setIsLoadingCredits(true);
+      const res = await fetch('/api/subscriptions');
+      if (res.ok) {
+        const data = await res.json();
+        setTokenBalance(data.credits_balance || 0);
+        if (data.subscription?.plan) {
+          setCurrentPlan(data.subscription.plan as 'free' | 'pro' | 'enterprise');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch credits:', error);
+    } finally {
+      setIsLoadingCredits(false);
+    }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) {
+        const data = await res.json();
+        // Convert API response to HistoryItem format
+        const historyItems: HistoryItem[] = (data.history || []).map((item: {
+          id: string;
+          source_language: string;
+          target_language: string;
+          tokens_used: number;
+          created_at: string;
+          input_image: { id: string; original_filename: string; url: string };
+          output_image: { id: string; original_filename: string; url: string };
+        }) => ({
+          id: item.id,
+          date: new Date(item.created_at).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          images: [{
+            id: item.id,
+            originalName: item.input_image?.original_filename || 'image',
+            sourceLanguage: languageNames[item.source_language] || item.source_language || 'Auto',
+            targetLanguage: languageNames[item.target_language] || item.target_language || 'Unknown',
+            originalUrl: item.input_image?.url || '',
+            processedUrl: item.output_image?.url || '',
+          }],
+          sourceLanguage: languageNames[item.source_language] || item.source_language || 'Auto',
+          targetLanguage: languageNames[item.target_language] || item.target_language || 'Unknown',
+          tokensUsed: item.tokens_used || 1,
+        }));
+        setHistory(historyItems);
+      }
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+    }
+  };
 
   // Get or create default project
   const ensureProject = useCallback(async (): Promise<string | null> => {
@@ -232,36 +304,20 @@ export default function Home() {
       };
 
       setResults([newResult]);
-      setTokenBalance((prev) => prev - totalCost);
+
+      // Update credits from server response
+      if (typeof translateData.credits_balance === 'number') {
+        setTokenBalance(translateData.credits_balance);
+      } else {
+        // Fallback: refresh credits from server
+        fetchCredits();
+      }
+
       setProgress(100);
       setProgressStatus('Translation complete!');
 
-      // Add to history
-      const historyItem: HistoryItem = {
-        id: Date.now().toString(),
-        date: new Date().toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        images: [
-          {
-            id: newResult.id,
-            originalName: newResult.originalName,
-            sourceLanguage: newResult.sourceLanguage,
-            targetLanguage: newResult.targetLanguage,
-            originalUrl: newResult.originalUrl,
-            processedUrl: newResult.variations[0].url,
-          },
-        ],
-        sourceLanguage: languageNames[sourceLanguage] || 'Auto',
-        targetLanguage: languageNames[targetLanguage] || 'Spanish',
-        tokensUsed: totalCost,
-      };
-
-      setHistory((prev) => [historyItem, ...prev]);
+      // Refresh history from server to get the new entry with correct URLs
+      fetchHistory();
     } catch (error) {
       console.error('Translation error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
