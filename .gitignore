@@ -41,3 +41,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 claude-here.command
+
+# Issue drafts (local planning)
+/issues/
+.claude/skills/issue-planner/common-questions.md
+.claude/skills/issue-planner/issue-template.md
+.claude/skills/issue-planner/SKILL.md
