@@ -33,9 +33,9 @@ const GEMINI_CONFIG = {
 
 /**
  * Model to use for image translation
- * Using gemini-2.0-flash-exp as it supports image generation
+ * Updated to gemini-3-pro-image-preview as requested
  */
-const MODEL = 'gemini-2.0-flash-exp';
+const MODEL = 'gemini-3-pro-image-preview';
 
 /**
  * Result of image translation
@@ -132,8 +132,8 @@ export async function translateImage(
 
     // Check for rate limit errors
     if (message.toLowerCase().includes('rate limit') ||
-        message.toLowerCase().includes('quota') ||
-        message.toLowerCase().includes('429')) {
+      message.toLowerCase().includes('quota') ||
+      message.toLowerCase().includes('429')) {
       throw new GeminiError(
         'Gemini API rate limit exceeded. Please try again later.',
         'RATE_LIMIT',
@@ -143,7 +143,7 @@ export async function translateImage(
 
     // Check for timeout errors
     if (message.toLowerCase().includes('timeout') ||
-        message.toLowerCase().includes('deadline')) {
+      message.toLowerCase().includes('deadline')) {
       throw new GeminiError(
         'Gemini API request timed out. Please try again.',
         'API_ERROR',

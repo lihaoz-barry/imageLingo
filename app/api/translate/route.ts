@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { translateImage, GeminiError } from '@/lib/gemini';
-import { getTranslationPrompt, PROMPT_VERSION } from '@/lib/prompts';
+import { getTranslationPrompt, PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName } from '@/lib/prompts';
 
 /**
  * POST /api/translate
@@ -106,10 +106,10 @@ export async function POST(req: NextRequest) {
     const imageBuffer = Buffer.from(await imageBlob.arrayBuffer());
     const mimeType = inputImage.mime_type || 'image/png';
 
-    // Build translation prompt
-    const prompt = getTranslationPrompt(
-      generation.source_language || 'auto',
-      generation.target_language || 'en'
+    // Build translation prompt using the detailed variant for higher quality results
+    const prompt = PROMPT_VARIANTS.detailed(
+      getLanguageName(generation.source_language || 'auto'),
+      getLanguageName(generation.target_language || 'en')
     );
 
     // Call Gemini API
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
       .update({
         status: 'completed',
         output_image_id: outputImage.id,
-        model_used: `gemini-2.0-flash-exp (prompt v${PROMPT_VERSION})`,
+        model_used: `gemini-3-pro-image-preview (prompt v${PROMPT_VERSION})`,
         processing_ms: processingMs,
       })
       .eq('id', generationId)
@@ -190,8 +190,8 @@ export async function POST(req: NextRequest) {
       const errorMessage = error instanceof GeminiError
         ? error.message
         : error instanceof Error
-        ? error.message
-        : 'Unknown error occurred';
+          ? error.message
+          : 'Unknown error occurred';
 
       await supabase
         .from('generations')
