@@ -16,7 +16,7 @@ export async function GET() {
         const imagesBucket = buckets.find((b: { name: string }) => b.name === 'images');
 
         if (!imagesBucket) {
-            const { data, error: createError } = await supabase.storage.createBucket('images', {
+            const { error: createError } = await supabase.storage.createBucket('images', {
                 public: true,
                 fileSizeLimit: 5242880, // 5MB
                 allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
@@ -27,7 +27,8 @@ export async function GET() {
         }
 
         return NextResponse.json({ message: 'Images bucket already exists' });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
