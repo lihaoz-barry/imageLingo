@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       'image/webp',
       'image/svg+xml',
     ];
-    
+
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     if (!fileExt || !allowedExtensions.includes(fileExt)) {
       return Response.json(
