@@ -156,8 +156,16 @@ export async function POST(req: NextRequest) {
       });
 
     if (storageError) {
+      console.error('Storage upload error:', {
+        message: storageError.message,
+        name: storageError.name,
+        cause: storageError.cause,
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+      });
       return Response.json(
-        { error: 'Failed to upload file to storage' },
+        { error: `Failed to upload file to storage: ${storageError.message}` },
         { status: 500 }
       );
     }
