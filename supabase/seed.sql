@@ -8,43 +8,143 @@
 --   - This file runs AFTER migrations during `supabase db reset`
 --   - It does NOT run in production deployments
 --   - Do NOT include real user data or production secrets
---   - auth.users cannot be seeded directly (managed by Supabase Auth)
+--
+-- TEST USER CREDENTIALS:
+--   Email: test@test.com
+--   Password: password123
 --
 -- To test with seed data:
---   1. Run `supabase db reset` to apply migrations + seed
---   2. Sign up via the app UI to create auth.users entries
---   3. The on_auth_user_created trigger will create profiles automatically
---
--- For local testing with pre-existing data, you can:
---   1. Create test users via Supabase Studio (localhost:54323)
---   2. Then run the INSERT statements below with those user IDs
+--   1. Run this SQL in Supabase SQL Editor (for hosted) or `supabase db reset` (for local)
+--   2. Login with test@test.com / password123
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- NOTE: The following seed data requires existing auth.users entries.
---
--- Option 1: Comment out and use app UI to create users first
--- Option 2: Use Supabase Studio to create test users, then update UUIDs below
--- Option 3: For fully automated local testing, use the test user approach below
+-- CREATE TEST USER
+-- -----------------------------------------------------------------------------
+-- This creates a test user that can be used across all environments.
+-- The password 'password123' is hashed using Supabase's crypt function.
 -- -----------------------------------------------------------------------------
 
--- We'll use a DO block to conditionally seed based on whether test users exist
--- This makes the seed file safe to run even without pre-existing users
-
+-- Fixed UUID for test user (consistent across environments)
 DO $$
 DECLARE
-  test_user_id uuid;
+  test_user_id uuid := '11111111-1111-1111-1111-111111111111';
   test_project_id uuid;
   test_image_id uuid;
+  encrypted_pw text;
 BEGIN
-  -- Check if we have any users (from manual signup or Studio)
-  SELECT id INTO test_user_id FROM auth.users LIMIT 1;
+  -- Check if test user already exists
+  IF EXISTS (SELECT 1 FROM auth.users WHERE id = test_user_id) THEN
+    RAISE NOTICE 'Test user already exists, skipping user creation...';
+  ELSE
+    -- Generate encrypted password for 'password123'
+    encrypted_pw := crypt('password123', gen_salt('bf'));
 
-  -- Only seed if we have at least one user
-  IF test_user_id IS NOT NULL THEN
-    RAISE NOTICE 'Found existing user %, seeding demo data...', test_user_id;
+    -- Create the test user in auth.users
+    INSERT INTO auth.users (
+      id,
+      instance_id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      invited_at,
+      confirmation_token,
+      confirmation_sent_at,
+      recovery_token,
+      recovery_sent_at,
+      email_change_token_new,
+      email_change,
+      email_change_sent_at,
+      last_sign_in_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      is_super_admin,
+      created_at,
+      updated_at,
+      phone,
+      phone_confirmed_at,
+      phone_change,
+      phone_change_token,
+      phone_change_sent_at,
+      email_change_token_current,
+      email_change_confirm_status,
+      banned_until,
+      reauthentication_token,
+      reauthentication_sent_at,
+      is_sso_user,
+      deleted_at,
+      is_anonymous
+    ) VALUES (
+      test_user_id,
+      '00000000-0000-0000-0000-000000000000',
+      'authenticated',
+      'authenticated',
+      'test@test.com',
+      encrypted_pw,
+      NOW(),  -- email_confirmed_at (pre-confirmed)
+      NULL,
+      '',
+      NULL,
+      '',
+      NULL,
+      '',
+      '',
+      NULL,
+      NOW(),
+      '{"provider": "email", "providers": ["email"]}',
+      '{"full_name": "Test User"}',
+      FALSE,
+      NOW(),
+      NOW(),
+      NULL,
+      NULL,
+      '',
+      '',
+      NULL,
+      '',
+      0,
+      NULL,
+      '',
+      NULL,
+      FALSE,
+      NULL,
+      FALSE
+    );
 
-    -- Create a demo project for the first user
+    -- Create identity for email provider
+    INSERT INTO auth.identities (
+      id,
+      user_id,
+      identity_data,
+      provider,
+      provider_id,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) VALUES (
+      gen_random_uuid(),
+      test_user_id,
+      jsonb_build_object('sub', test_user_id::text, 'email', 'test@test.com'),
+      'email',
+      test_user_id::text,
+      NOW(),
+      NOW(),
+      NOW()
+    );
+
+    RAISE NOTICE 'Test user created successfully!';
+    RAISE NOTICE 'Email: test@test.com';
+    RAISE NOTICE 'Password: password123';
+  END IF;
+
+  -- Now seed demo data for the test user
+  -- Check if demo project already exists
+  IF EXISTS (SELECT 1 FROM public.projects WHERE owner_id = test_user_id AND name = 'Demo Project') THEN
+    RAISE NOTICE 'Demo data already exists, skipping...';
+  ELSE
+    -- Create a demo project for the test user
     INSERT INTO public.projects (id, owner_id, name, description)
     VALUES (
       gen_random_uuid(),
@@ -94,16 +194,9 @@ BEGIN
         NULL
       );
 
-    RAISE NOTICE 'Seed data created successfully!';
+    RAISE NOTICE 'Demo data created successfully!';
     RAISE NOTICE 'Project ID: %', test_project_id;
     RAISE NOTICE 'Image ID: %', test_image_id;
-
-  ELSE
-    RAISE NOTICE 'No users found. Skipping demo data seed.';
-    RAISE NOTICE 'To seed demo data:';
-    RAISE NOTICE '  1. Sign up via the app, OR';
-    RAISE NOTICE '  2. Create a user in Supabase Studio (localhost:54323)';
-    RAISE NOTICE '  3. Then run: supabase db reset';
   END IF;
 END $$;
 

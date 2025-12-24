@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { AuthDialog } from '@/components/AuthDialog';
@@ -11,18 +11,12 @@ import { ProcessButton } from '@/components/ProcessButton';
 import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { VariationSelector } from '@/components/VariationSelector';
 import { CostCalculator } from '@/components/CostCalculator';
-import { ResultsGridWithVariations, type ProcessedImageWithVariations, type ImageVariation } from '@/components/ResultsGridWithVariations';
+import { ResultsGridWithVariations, type ProcessedImageWithVariations } from '@/components/ResultsGridWithVariations';
 import { HistoryPanel, type HistoryItem } from '@/components/HistoryPanel';
 import { BillingPanel } from '@/components/BillingPanel';
 
-// Mock processed image URLs for demo
-const mockProcessedImages = [
-  'https://images.unsplash.com/photo-1687580713037-e2192ed77cb0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqYXBhbmVzZSUyMHByb2R1Y3QlMjBsYWJlbHxlbnwxfHx8fDE3NjQ5MjE3OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-  'https://images.unsplash.com/photo-1645453015291-0a80bbdeeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGluZXNlJTIwbWVudSUyMGZvb2R8ZW58MXx8fHwxNzY0OTIxNzk2fDA&ixlib=rb-4.1.0&q=80&w=1080',
-  'https://images.unsplash.com/photo-1554296759-ec7c058ecf9c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxrb3JlYW4lMjBzaWduYWdlJTIwdGV4dHxlbnwxfHx8fDE3NjQ5MjE3OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-  'https://images.unsplash.com/photo-1659662281284-f5a841850bfb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqYXBhbmVzZSUyMHByb2R1Y3QlMjBwYWNrYWdpbmd8ZW58MXx8fHwxNzY0OTIyNDA3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-  'https://images.unsplash.com/photo-1706341764900-bd6660e9f26d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGluZXNlJTIwcmVzdGF1cmFudCUyMG1lbnV8ZW58MXx8fHwxNzY0OTIyNDA3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-];
+// Default project name for translations
+const DEFAULT_PROJECT_NAME = 'Translations';
 
 const languageNames: { [key: string]: string } = {
   'auto': 'Auto',
@@ -59,6 +53,52 @@ export default function Home() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
 
+  // Real API integration state
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  // Get or create default project
+  const ensureProject = useCallback(async (): Promise<string | null> => {
+    if (projectId) return projectId;
+
+    try {
+      // First, try to fetch existing projects
+      const listRes = await fetch('/api/projects');
+      if (!listRes.ok) {
+        console.error('Failed to fetch projects');
+        return null;
+      }
+
+      const { projects } = await listRes.json();
+      const defaultProject = projects?.find(
+        (p: { name: string }) => p.name === DEFAULT_PROJECT_NAME
+      );
+
+      if (defaultProject) {
+        setProjectId(defaultProject.id);
+        return defaultProject.id;
+      }
+
+      // Create new project if none exists
+      const createRes = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: DEFAULT_PROJECT_NAME }),
+      });
+
+      if (!createRes.ok) {
+        console.error('Failed to create project');
+        return null;
+      }
+
+      const { project } = await createRes.json();
+      setProjectId(project.id);
+      return project.id;
+    } catch (error) {
+      console.error('Project error:', error);
+      return null;
+    }
+  }, [projectId]);
+
   const handleFilesSelected = (files: File[]) => {
     const newImages: ImageFile[] = files.slice(0, 10).map((file) => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -82,6 +122,12 @@ export default function Home() {
   };
 
   const handleProcess = async () => {
+    // Check if user is logged in
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+
     const totalCost = images.length * variationsPerImage * COST_PER_IMAGE;
 
     if (tokenBalance < totalCost) {
@@ -92,69 +138,138 @@ export default function Home() {
     setIsProcessing(true);
     setProgress(0);
     setResults([]);
+    setProgressStatus('Initializing...');
 
-    const stages = [
-      { progress: 15, status: 'Analyzing images with AI...' },
-      { progress: 35, status: 'Detecting text regions...' },
-      { progress: 55, status: 'Translating content...' },
-      { progress: 75, status: `Generating ${variationsPerImage} variations per image...` },
-      { progress: 90, status: 'Rendering localized images...' },
-      { progress: 100, status: 'Complete!' },
-    ];
+    try {
+      // Ensure we have a project
+      const projId = await ensureProject();
+      if (!projId) {
+        throw new Error('Failed to create or fetch project');
+      }
 
-    for (const stage of stages) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setProgress(stage.progress);
-      setProgressStatus(stage.status);
-    }
+      // For now, process only the first image (single image flow)
+      // Multi-image support can be added later
+      const imageFile = images[0];
+      if (!imageFile) {
+        throw new Error('No image selected');
+      }
 
-    // Generate variations for each image
-    const processedResults: ProcessedImageWithVariations[] = images.map((image, imageIndex) => {
-      const variations: ImageVariation[] = Array.from({ length: variationsPerImage }, (_, varIndex) => ({
-        id: `${image.id}-var-${varIndex}`,
-        url: mockProcessedImages[(imageIndex * variationsPerImage + varIndex) % mockProcessedImages.length],
-        variationNumber: varIndex + 1,
-      }));
+      setProgress(5);
+      setProgressStatus('Uploading image...');
 
-      return {
-        id: image.id,
-        originalName: image.name,
+      // Step 1: Upload image
+      const formData = new FormData();
+      formData.append('file', imageFile.file);
+      formData.append('project_id', projId);
+
+      const uploadRes = await fetch('/api/images', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const error = await uploadRes.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      const { image: uploadedImage } = await uploadRes.json();
+      setProgress(15);
+      setProgressStatus('Creating translation task...');
+
+      // Step 2: Create generation
+      const genRes = await fetch('/api/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projId,
+          type: 'translation',
+          input_image_id: uploadedImage.id,
+          source_language: sourceLanguage,
+          target_language: targetLanguage,
+        }),
+      });
+
+      if (!genRes.ok) {
+        const error = await genRes.json();
+        throw new Error(error.error || 'Failed to create generation');
+      }
+
+      const { generation: newGeneration } = await genRes.json();
+      setProgress(20);
+      setProgressStatus('Starting translation...');
+
+      // Step 3: Start translation
+      const translateRes = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generation_id: newGeneration.id,
+        }),
+      });
+
+      if (!translateRes.ok) {
+        const error = await translateRes.json();
+        throw new Error(error.error || 'Translation failed');
+      }
+
+      const translateData = await translateRes.json();
+
+      // Translation completed successfully (synchronous for now)
+      const newResult: ProcessedImageWithVariations = {
+        id: imageFile.id,
+        originalName: imageFile.name,
         sourceLanguage: languageNames[sourceLanguage] || 'Auto',
         targetLanguage: languageNames[targetLanguage] || 'Spanish',
-        originalUrl: image.preview,
-        variations,
-        selectedVariationId: variations[0].id,
+        originalUrl: translateData.input_url || imageFile.preview,
+        variations: [
+          {
+            id: `${imageFile.id}-var-0`,
+            url: translateData.output_url || '',
+            variationNumber: 1,
+          },
+        ],
+        selectedVariationId: `${imageFile.id}-var-0`,
       };
-    });
 
-    setResults(processedResults);
-    setTokenBalance(prev => prev - totalCost);
+      setResults([newResult]);
+      setTokenBalance((prev) => prev - totalCost);
+      setProgress(100);
+      setProgressStatus('Translation complete!');
 
-    // Add to history
-    const historyItem: HistoryItem = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      images: processedResults.map(r => ({
-        id: r.id,
-        originalName: r.originalName,
-        sourceLanguage: r.sourceLanguage,
-        targetLanguage: r.targetLanguage,
-        originalUrl: r.originalUrl,
-        processedUrl: r.variations[0].url,
-      })),
-      sourceLanguage: languageNames[sourceLanguage] || 'Auto',
-      targetLanguage: languageNames[targetLanguage] || 'Spanish',
-      tokensUsed: totalCost,
-    };
+      // Add to history
+      const historyItem: HistoryItem = {
+        id: Date.now().toString(),
+        date: new Date().toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        images: [
+          {
+            id: newResult.id,
+            originalName: newResult.originalName,
+            sourceLanguage: newResult.sourceLanguage,
+            targetLanguage: newResult.targetLanguage,
+            originalUrl: newResult.originalUrl,
+            processedUrl: newResult.variations[0].url,
+          },
+        ],
+        sourceLanguage: languageNames[sourceLanguage] || 'Auto',
+        targetLanguage: languageNames[targetLanguage] || 'Spanish',
+        tokensUsed: totalCost,
+      };
 
-    setHistory(prev => [historyItem, ...prev]);
-    setIsProcessing(false);
+      setHistory((prev) => [historyItem, ...prev]);
+    } catch (error) {
+      console.error('Translation error:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setProgressStatus(`Error: ${message}`);
+      alert(`Translation failed: ${message}`);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSelectVariation = (imageId: string, variationId: string) => {

@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       'image/webp',
       'image/svg+xml',
     ];
-    
+
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     if (!fileExt || !allowedExtensions.includes(fileExt)) {
       return Response.json(
@@ -156,8 +156,16 @@ export async function POST(req: NextRequest) {
       });
 
     if (storageError) {
+      console.error('Storage upload error:', {
+        message: storageError.message,
+        name: storageError.name,
+        cause: storageError.cause,
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+      });
       return Response.json(
-        { error: 'Failed to upload file to storage' },
+        { error: `Failed to upload file to storage: ${storageError.message}` },
         { status: 500 }
       );
     }
