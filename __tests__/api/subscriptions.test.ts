@@ -32,8 +32,19 @@ describe('GET /api/subscriptions', () => {
     expect(response.status).toBe(401);
   });
 
-  it('should return 404 if subscription not found', async () => {
+  it('should create subscription with 20 credits if not found', async () => {
     const mockUserId = '123e4567-e89b-12d3-a456-426614174000';
+    const mockNewSubscription = {
+      id: 'sub-new',
+      user_id: mockUserId,
+      plan: 'free',
+      status: 'active',
+      generations_used: 0,
+      generations_limit: 20,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+    };
+
     vi.mocked(requireAuth).mockResolvedValue({
       response: null,
       userId: mockUserId,
@@ -49,6 +60,14 @@ describe('GET /api/subscriptions', () => {
             }),
           })),
         })),
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: mockNewSubscription,
+              error: null,
+            }),
+          })),
+        })),
       })),
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,9 +76,10 @@ describe('GET /api/subscriptions', () => {
     const req = new NextRequest('http://localhost:3000/api/subscriptions');
     const response = await GET(req);
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
     const json = await response.json();
-    expect(json.error).toBe('Subscription not found');
+    expect(json.subscription).toEqual(mockNewSubscription);
+    expect(json.credits_balance).toBe(20);
   });
 
   it('should return subscription on success', async () => {
@@ -101,5 +121,6 @@ describe('GET /api/subscriptions', () => {
     expect(response.status).toBe(200);
     const json = await response.json();
     expect(json.subscription).toEqual(mockSubscription);
+    expect(json.credits_balance).toBe(5); // 10 - 5 = 5
   });
 });
