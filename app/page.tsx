@@ -151,17 +151,14 @@ export default function Home() {
       }
 
       // Process all selected images
-      const totalTasks = images.length * variationsPerImage;
       let completedTasks = 0;
 
       for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
         const imageFile = images[imageIndex];
         
-        setProgressStatus(`Processing image ${imageIndex + 1}/${images.length}: ${imageFile.name}...`);
-        
         try {
           // Step 1: Upload image
-          setProgressStatus(`Uploading image ${imageIndex + 1}/${images.length}...`);
+          setProgressStatus(`Uploading image ${imageIndex + 1}/${images.length}: ${imageFile.name}...`);
           const formData = new FormData();
           formData.append('file', imageFile.file);
           formData.append('project_id', projId);
@@ -180,9 +177,10 @@ export default function Home() {
           
           // Generate multiple variations for this image
           const variations = [];
+          let originalUrl = imageFile.preview; // fallback to local preview
           
           for (let varIndex = 0; varIndex < variationsPerImage; varIndex++) {
-            setProgressStatus(`Creating variation ${varIndex + 1}/${variationsPerImage} for image ${imageIndex + 1}/${images.length}...`);
+            setProgressStatus(`Creating variation ${varIndex + 1}/${variationsPerImage} for image ${imageIndex + 1}/${images.length}: ${imageFile.name}...`);
             
             try {
               // Step 2: Create generation for this variation
@@ -221,6 +219,11 @@ export default function Home() {
 
               const translateData = await translateRes.json();
 
+              // Use the input_url from first successful translation for consistency
+              if (varIndex === 0 && translateData.input_url) {
+                originalUrl = translateData.input_url;
+              }
+
               // Add variation to the list
               variations.push({
                 id: `${imageFile.id}-var-${varIndex}`,
@@ -231,9 +234,12 @@ export default function Home() {
               // Only increment actual cost for successfully processed variations
               actualCost += COST_PER_IMAGE;
               completedTasks++;
-              setProgress(Math.round((completedTasks / totalTasks) * 100));
+              
+              // Calculate progress based on completed vs total requested tasks
+              const totalRequestedTasks = images.length * variationsPerImage;
+              setProgress(Math.round((completedTasks / totalRequestedTasks) * 100));
             } catch (varError) {
-              console.error(`Error creating variation ${varIndex + 1} for image ${imageIndex + 1}:`, varError);
+              console.error(`Error creating variation ${varIndex + 1} for image "${imageFile.name}" (${imageIndex + 1}/${images.length}):`, varError);
               // Continue with next variation instead of failing completely
             }
           }
@@ -245,7 +251,7 @@ export default function Home() {
               originalName: imageFile.name,
               sourceLanguage: languageNames[sourceLanguage] || 'Auto',
               targetLanguage: languageNames[targetLanguage] || 'Spanish',
-              originalUrl: uploadedImage.storage_path || imageFile.preview,
+              originalUrl,
               variations,
               selectedVariationId: variations[0].id,
             };
@@ -253,7 +259,7 @@ export default function Home() {
             processedResults.push(newResult);
           }
         } catch (imageError) {
-          console.error(`Error processing image ${imageIndex + 1}:`, imageError);
+          console.error(`Error processing image "${imageFile.name}" (${imageIndex + 1}/${images.length}):`, imageError);
           // Continue with next image instead of failing completely
         }
       }
