@@ -17,8 +17,8 @@ export async function GET() {
 
         if (!imagesBucket) {
             const { error: createError } = await supabase.storage.createBucket('images', {
-                public: true,
-                fileSizeLimit: 5242880, // 5MB
+                public: false,
+                fileSizeLimit: 52428800, // 50MB
                 allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
             });
 
