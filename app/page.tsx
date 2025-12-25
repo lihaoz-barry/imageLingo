@@ -29,7 +29,6 @@ export default function Home() {
   // State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
-  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
   const [targetLanguage, setTargetLanguage] = useState('en');
@@ -63,11 +62,28 @@ export default function Home() {
   }, [user]);
 
   // Save preferences when they change (only after initial load)
+  // Save preferences when they change (only after initial load)
   useEffect(() => {
+    const savePreferences = async () => {
+      try {
+        await fetch('/api/preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source_language: sourceLanguage,
+            target_language: targetLanguage,
+            variations_per_image: variationsPerImage,
+          }),
+        });
+      } catch (error) {
+        console.error('Error saving preferences:', error);
+      }
+    };
+
     if (user && (preferencesLoaded || hasUserAdjustedPreferences)) {
       savePreferences();
     }
-  }, [sourceLanguage, targetLanguage, variationsPerImage, preferencesLoaded, hasUserAdjustedPreferences]);
+  }, [user, preferencesLoaded, hasUserAdjustedPreferences, sourceLanguage, targetLanguage, variationsPerImage]);
 
   const fetchPreferences = async () => {
     try {
@@ -85,25 +101,8 @@ export default function Home() {
     }
   };
 
-  const savePreferences = async () => {
-    try {
-      await fetch('/api/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source_language: sourceLanguage,
-          target_language: targetLanguage,
-          variations_per_image: variationsPerImage,
-        }),
-      });
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-    }
-  };
-
   const fetchCredits = async () => {
     try {
-      setIsLoadingCredits(true);
       const res = await fetch('/api/subscriptions');
       if (res.ok) {
         const data = await res.json();
@@ -114,8 +113,6 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to fetch credits:', error);
-    } finally {
-      setIsLoadingCredits(false);
     }
   };
 

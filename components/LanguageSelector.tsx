@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Search, Check, Globe } from 'lucide-react';
+import { ChevronDown, Search, Check } from 'lucide-react';
 import { LANGUAGES, type Language } from '@/lib/languages';
 
 interface LanguageSelectorProps {
@@ -16,6 +16,16 @@ export function LanguageSelector({
   onTargetChange,
 }: LanguageSelectorProps) {
   const [openSelector, setOpenSelector] = useState<'source' | 'target' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleToggle = (selector: 'source' | 'target') => {
+    if (openSelector === selector) {
+      setOpenSelector(null);
+    } else {
+      setSearchQuery('');
+      setOpenSelector(selector);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center gap-4 mb-8">
@@ -27,9 +37,11 @@ export function LanguageSelector({
           value={sourceLanguage}
           onChange={onSourceChange}
           isOpen={openSelector === 'source'}
-          onToggle={() => setOpenSelector(openSelector === 'source' ? null : 'source')}
+          onToggle={() => handleToggle('source')}
           onClose={() => setOpenSelector(null)}
           languages={LANGUAGES}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
         />
 
         <div className="w-px h-8 bg-white/20" />
@@ -40,9 +52,11 @@ export function LanguageSelector({
           value={targetLanguage}
           onChange={onTargetChange}
           isOpen={openSelector === 'target'}
-          onToggle={() => setOpenSelector(openSelector === 'target' ? null : 'target')}
+          onToggle={() => handleToggle('target')}
           onClose={() => setOpenSelector(null)}
           languages={LANGUAGES.filter(l => l.code !== 'auto')}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
         />
       </div>
 
@@ -65,6 +79,8 @@ interface LanguageDropdownProps {
   onToggle: () => void;
   onClose: () => void;
   languages: Language[];
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 }
 
 function LanguageDropdown({
@@ -74,9 +90,10 @@ function LanguageDropdown({
   isOpen,
   onToggle,
   onClose,
-  languages
+  languages,
+  searchQuery,
+  setSearchQuery
 }: LanguageDropdownProps) {
-  const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -85,9 +102,6 @@ function LanguageDropdown({
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 50);
-    }
-    if (!isOpen) {
-      setSearchQuery('');
     }
   }, [isOpen]);
 
