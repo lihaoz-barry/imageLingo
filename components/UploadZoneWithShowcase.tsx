@@ -9,18 +9,11 @@ interface UploadZoneWithShowcaseProps {
 
 const showcaseExamples = [
   {
-    before: 'https://images.unsplash.com/photo-1659662281284-f5a841850bfb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqYXBhbmVzZSUyMHByb2R1Y3QlMjBwYWNrYWdpbmd8ZW58MXx8fHwxNzY0OTIyNDA3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    after: 'https://images.unsplash.com/photo-1706341764900-bd6660e9f26d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGluZXNlJTIwcmVzdGF1cmFudCUyMG1lbnV8ZW58MXx8fHwxNzY0OTIyNDA3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    beforeLabel: 'Japanese',
+    before: '/images/showcase/product-cn.jpg',
+    after: '/images/showcase/product-en.jpg',
+    beforeLabel: 'Chinese',
     afterLabel: 'English',
     title: 'Product Packaging',
-  },
-  {
-    before: 'https://images.unsplash.com/photo-1687580713037-e2192ed77cb0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqYXBhbmVzZSUyMHByb2R1Y3QlMjBsYWJlbHxlbnwxfHx8fDE3NjQ5MjE3OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    after: 'https://images.unsplash.com/photo-1645453015291-0a80bbdeeea6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGluZXNlJTIwbWVudSUyMGZvb2R8ZW58MXx8fHwxNzY0OTIxNzk2fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    beforeLabel: 'Korean',
-    afterLabel: 'Spanish',
-    title: 'Restaurant Menus',
   },
 ];
 
@@ -41,11 +34,11 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const files = Array.from(e.dataTransfer.files).filter(file =>
       file.type.startsWith('image/')
     );
-    
+
     if (files.length > 0) {
       onFilesSelected(files);
     }
@@ -70,8 +63,8 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
       className={`
         relative border-2 border-dashed rounded-3xl overflow-hidden
         transition-all duration-300
-        ${isDragging 
-          ? 'border-[#00d4ff] bg-[#00d4ff]/10' 
+        ${isDragging
+          ? 'border-[#00d4ff] bg-[#00d4ff]/10'
           : 'border-[#c026d3] hover:border-[#8b5cf6]'
         }
       `}
@@ -84,7 +77,7 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
         onChange={handleFileChange}
         className="hidden"
       />
-      
+
       {/* Showcase Mode (when no images) */}
       {!hasImages && !isDragging && (
         <div className="p-8">
@@ -113,21 +106,22 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
           </div>
 
           {/* Example Selector */}
-          <div className="flex justify-center gap-2 mb-8">
-            {showcaseExamples.map((example, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentExample(idx)}
-                className={`px-4 py-2 rounded-lg text-sm transition-all ${
-                  currentExample === idx
+          {showcaseExamples.length > 1 && (
+            <div className="flex justify-center gap-2 mb-8">
+              {showcaseExamples.map((example, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentExample(idx)}
+                  className={`px-4 py-2 rounded-lg text-sm transition-all ${currentExample === idx
                     ? 'bg-gradient-to-r from-[#8b5cf6] to-[#c026d3] text-white'
                     : 'bg-white/5 text-[#9ca3af] hover:bg-white/10'
-                }`}
-              >
-                {example.title}
-              </button>
-            ))}
-          </div>
+                    }`}
+                >
+                  {example.title}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Feature Highlights */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -163,7 +157,7 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
           </div>
 
           {/* Upload CTA */}
-          <div 
+          <div
             onClick={handleClick}
             className="p-8 rounded-2xl border-2 border-dashed border-[#8b5cf6]/50 hover:border-[#8b5cf6] hover:bg-white/5 transition-all cursor-pointer group"
           >
@@ -172,7 +166,7 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
                 <Camera className="w-12 h-12 text-[#8b5cf6] group-hover:scale-110 transition-transform" strokeWidth={1.5} />
                 <Upload className="w-5 h-5 text-[#00d4ff] absolute -bottom-1 -right-1" />
               </div>
-              
+
               <div className="text-center">
                 <p className="text-lg text-white mb-1">
                   Ready to try? Upload your images
@@ -194,7 +188,7 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
               <Camera className="w-16 h-16 text-[#8b5cf6]" strokeWidth={1.5} />
               <Upload className="w-6 h-6 text-[#00d4ff] absolute -bottom-1 -right-1" />
             </div>
-            
+
             <div className="text-center">
               <p className="text-xl text-white mb-2">
                 {isDragging ? 'Drop images here' : 'Add more images'}
