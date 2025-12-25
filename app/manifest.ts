@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next'
- 
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'ImageLingo - AI-Powered OCR & Image Translation',
@@ -11,9 +11,14 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#667eea',
     icons: [
       {
-        src: '/favicon.ico',
-        sizes: 'any',
-        type: 'image/x-icon',
+        src: '/icon',
+        sizes: '32x32',
+        type: 'image/png',
+      },
+      {
+        src: '/apple-icon',
+        sizes: '180x180',
+        type: 'image/png',
       },
     ],
   }
