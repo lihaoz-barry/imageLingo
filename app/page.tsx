@@ -58,6 +58,7 @@ export default function Home() {
   // Real API integration state
   const [projectId, setProjectId] = useState<string | null>(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [hasUserAdjustedPreferences, setHasUserAdjustedPreferences] = useState(false);
 
   // Fetch credits, history, and preferences when user logs in
   useEffect(() => {
@@ -69,15 +70,16 @@ export default function Home() {
       setTokenBalance(0);
       setHistory([]);
       setPreferencesLoaded(false);
+      setHasUserAdjustedPreferences(false);
     }
   }, [user]);
 
   // Save preferences when they change (only after initial load)
   useEffect(() => {
-    if (user && preferencesLoaded) {
+    if (user && (preferencesLoaded || hasUserAdjustedPreferences)) {
       savePreferences();
     }
-  }, [sourceLanguage, targetLanguage, variationsPerImage, preferencesLoaded]);
+  }, [sourceLanguage, targetLanguage, variationsPerImage, preferencesLoaded, hasUserAdjustedPreferences]);
 
   const fetchPreferences = async () => {
     try {
@@ -87,11 +89,11 @@ export default function Home() {
         setSourceLanguage(data.source_language || 'auto');
         setTargetLanguage(data.target_language || 'en');
         setVariationsPerImage(data.variations_per_image || 1);
+        setPreferencesLoaded(true);
+        setHasUserAdjustedPreferences(false);
       }
     } catch (error) {
       console.error('Error fetching preferences:', error);
-    } finally {
-      setPreferencesLoaded(true);
     }
   };
 
@@ -213,6 +215,21 @@ export default function Home() {
       return null;
     }
   }, [projectId]);
+
+  const handleSourceLanguageChange = (value: string) => {
+    setSourceLanguage(value);
+    setHasUserAdjustedPreferences(true);
+  };
+
+  const handleTargetLanguageChange = (value: string) => {
+    setTargetLanguage(value);
+    setHasUserAdjustedPreferences(true);
+  };
+
+  const handleVariationsChange = (value: number) => {
+    setVariationsPerImage(value);
+    setHasUserAdjustedPreferences(true);
+  };
 
   const handleFilesSelected = (files: File[]) => {
     const newImages: ImageFile[] = files.slice(0, 10).map((file) => ({
@@ -493,15 +510,15 @@ export default function Home() {
           <LanguageSelector
             sourceLanguage={sourceLanguage}
             targetLanguage={targetLanguage}
-            onSourceChange={setSourceLanguage}
-            onTargetChange={setTargetLanguage}
+            onSourceChange={handleSourceLanguageChange}
+            onTargetChange={handleTargetLanguageChange}
           />
 
           {/* Variation Selector */}
           <div className="flex justify-center mb-6">
             <VariationSelector
               value={variationsPerImage}
-              onChange={setVariationsPerImage}
+              onChange={handleVariationsChange}
             />
           </div>
 
