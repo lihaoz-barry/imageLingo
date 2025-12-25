@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     siteName: "ImageLingo",
     images: [
       {
-        url: '/og-image.png',
+        url: '/opengraph-image',
         width: 1200,
         height: 630,
         alt: 'ImageLingo - AI-Powered Image Translation',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "ImageLingo - AI-Powered OCR & Image Translation",
     description: "Extract and translate text from images instantly. AI-powered OCR supporting 10+ languages.",
-    images: ['/og-image.png'],
+    images: ['/twitter-image'],
     creator: '@imagelingo',
   },
   robots: {
@@ -99,7 +99,7 @@ export default function RootLayout({
       'AI-powered processing',
       'Instant results',
     ],
-    screenshot: '/og-image.png',
+    screenshot: '/opengraph-image',
   };
 
   return (
