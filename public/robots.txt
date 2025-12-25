@@ -1,0 +1,11 @@
+# robots.txt for ImageLingo
+# Allow all search engines to crawl the site
+
+User-agent: *
+Allow: /
+
+# Disallow admin or API routes if any
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://imagelingo.vercel.app/sitemap.xml
