@@ -14,6 +14,7 @@ import { CostCalculator } from '@/components/CostCalculator';
 import { ResultsGridWithVariations, type ProcessedImageWithVariations } from '@/components/ResultsGridWithVariations';
 import { HistoryPanel, type HistoryItem } from '@/components/HistoryPanel';
 import { BillingPanel } from '@/components/BillingPanel';
+import { Footer } from '@/components/Footer';
 
 // Default project name for translations
 const DEFAULT_PROJECT_NAME = 'Translations';
@@ -43,9 +44,9 @@ export default function Home() {
   const [isLoadingCredits, setIsLoadingCredits] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
-  const [targetLanguage, setTargetLanguage] = useState('es');
+  const [targetLanguage, setTargetLanguage] = useState('en');
   const [images, setImages] = useState<ImageFile[]>([]);
-  const [variationsPerImage, setVariationsPerImage] = useState(2);
+  const [variationsPerImage, setVariationsPerImage] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
@@ -56,17 +57,61 @@ export default function Home() {
 
   // Real API integration state
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [hasUserAdjustedPreferences, setHasUserAdjustedPreferences] = useState(false);
 
-  // Fetch credits and history when user logs in
+  // Fetch credits, history, and preferences when user logs in
   useEffect(() => {
     if (user) {
       fetchCredits();
       fetchHistory();
+      fetchPreferences();
     } else {
       setTokenBalance(0);
       setHistory([]);
+      setPreferencesLoaded(false);
+      setHasUserAdjustedPreferences(false);
     }
   }, [user]);
+
+  // Save preferences when they change (only after initial load)
+  useEffect(() => {
+    if (user && (preferencesLoaded || hasUserAdjustedPreferences)) {
+      savePreferences();
+    }
+  }, [sourceLanguage, targetLanguage, variationsPerImage, preferencesLoaded, hasUserAdjustedPreferences]);
+
+  const fetchPreferences = async () => {
+    try {
+      const res = await fetch('/api/preferences');
+      if (res.ok) {
+        const data = await res.json();
+        setSourceLanguage(data.source_language || 'auto');
+        setTargetLanguage(data.target_language || 'en');
+        setVariationsPerImage(data.variations_per_image || 1);
+        setPreferencesLoaded(true);
+        setHasUserAdjustedPreferences(false);
+      }
+    } catch (error) {
+      console.error('Error fetching preferences:', error);
+    }
+  };
+
+  const savePreferences = async () => {
+    try {
+      await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_language: sourceLanguage,
+          target_language: targetLanguage,
+          variations_per_image: variationsPerImage,
+        }),
+      });
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+    }
+  };
 
   const fetchCredits = async () => {
     try {
@@ -170,6 +215,21 @@ export default function Home() {
       return null;
     }
   }, [projectId]);
+
+  const handleSourceLanguageChange = (value: string) => {
+    setSourceLanguage(value);
+    setHasUserAdjustedPreferences(true);
+  };
+
+  const handleTargetLanguageChange = (value: string) => {
+    setTargetLanguage(value);
+    setHasUserAdjustedPreferences(true);
+  };
+
+  const handleVariationsChange = (value: number) => {
+    setVariationsPerImage(value);
+    setHasUserAdjustedPreferences(true);
+  };
 
   const handleFilesSelected = (files: File[]) => {
     const newImages: ImageFile[] = files.slice(0, 10).map((file) => ({
@@ -450,15 +510,15 @@ export default function Home() {
           <LanguageSelector
             sourceLanguage={sourceLanguage}
             targetLanguage={targetLanguage}
-            onSourceChange={setSourceLanguage}
-            onTargetChange={setTargetLanguage}
+            onSourceChange={handleSourceLanguageChange}
+            onTargetChange={handleTargetLanguageChange}
           />
 
           {/* Variation Selector */}
           <div className="flex justify-center mb-6">
             <VariationSelector
               value={variationsPerImage}
-              onChange={setVariationsPerImage}
+              onChange={handleVariationsChange}
             />
           </div>
 
@@ -499,6 +559,8 @@ export default function Home() {
           onSelectVariation={handleSelectVariation}
         />
       </main>
+
+      <Footer />
     </div>
   );
 }
