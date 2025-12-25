@@ -58,7 +58,7 @@ export async function authenticateRequest(): Promise<AuthResult> {
  * Returns Response with 401 if not authenticated, otherwise returns null
  */
 export async function requireAuth(
-  req: NextRequest
+  _req: NextRequest
 ): Promise<{ response: Response; userId: null } | { response: null; userId: string }> {
   const authResult = await authenticateRequest();
 

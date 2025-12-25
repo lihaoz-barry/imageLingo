@@ -1,25 +1,32 @@
 import { useRef, useState, useEffect } from 'react';
 import { Camera, Upload, Info } from 'lucide-react';
-import { ShowcaseModal } from './ShowcaseModal';
-
 interface UploadZoneWithShowcaseProps {
   onFilesSelected: (files: File[]) => void;
   hasImages: boolean;
+  isShowcaseOpen: boolean;
+  setIsShowcaseOpen: (val: boolean | ((p: boolean) => boolean)) => void;
 }
 
-export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZoneWithShowcaseProps) {
+export function UploadZoneWithShowcase({
+  onFilesSelected,
+  hasImages,
+  isShowcaseOpen,
+  setIsShowcaseOpen
+}: UploadZoneWithShowcaseProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [isShowcaseOpen, setIsShowcaseOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if first time user
   useEffect(() => {
     const hasSeenShowcase = localStorage.getItem('imageLingo_hasSeenShowcase');
     if (!hasSeenShowcase) {
-      setIsShowcaseOpen(true);
+      // Use queueMicrotask to avoid synchronous setState within effect
+      queueMicrotask(() => {
+        setIsShowcaseOpen(true);
+      });
       localStorage.setItem('imageLingo_hasSeenShowcase', 'true');
     }
-  }, []);
+  }, [setIsShowcaseOpen]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -56,11 +63,6 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
 
   return (
     <>
-      <ShowcaseModal
-        isOpen={isShowcaseOpen}
-        onClose={() => setIsShowcaseOpen(false)}
-      />
-
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -87,7 +89,7 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
         <button
           onClick={(e) => {
             e.stopPropagation();
-            setIsShowcaseOpen(true);
+            setIsShowcaseOpen((val) => !val);
           }}
           className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#9ca3af] hover:text-white transition-colors border border-white/10 group"
           title="How it works"

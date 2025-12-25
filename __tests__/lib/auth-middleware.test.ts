@@ -18,8 +18,7 @@ describe('auth-middleware', () => {
     it('should return authenticated: false if Supabase is not configured', async () => {
       vi.mocked(createSupabaseServerClient).mockResolvedValue(null);
 
-      const req = new NextRequest('http://localhost:3000/api/test');
-      const result = await authenticateRequest(req);
+      const result = await authenticateRequest();
 
       expect(result.authenticated).toBe(false);
       expect(result.error).toBe('Supabase not configured');
@@ -37,8 +36,7 @@ describe('auth-middleware', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
-      const req = new NextRequest('http://localhost:3000/api/test');
-      const result = await authenticateRequest(req);
+      const result = await authenticateRequest();
 
       expect(result.authenticated).toBe(false);
       expect(result.error).toBe('Unauthorized - Invalid or missing authentication token');
@@ -57,8 +55,7 @@ describe('auth-middleware', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
-      const req = new NextRequest('http://localhost:3000/api/test');
-      const result = await authenticateRequest(req);
+      const result = await authenticateRequest();
 
       expect(result.authenticated).toBe(true);
       expect(result.userId).toBe(mockUserId);
@@ -69,8 +66,7 @@ describe('auth-middleware', () => {
         new Error('Connection failed')
       );
 
-      const req = new NextRequest('http://localhost:3000/api/test');
-      const result = await authenticateRequest(req);
+      const result = await authenticateRequest();
 
       expect(result.authenticated).toBe(false);
       expect(result.error).toBe('Connection failed');
