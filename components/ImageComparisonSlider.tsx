@@ -6,6 +6,7 @@ interface ImageComparisonSliderProps {
   afterImage: string;
   beforeLabel?: string;
   afterLabel?: string;
+  aspectRatio?: string;
 }
 
 export function ImageComparisonSlider({
@@ -13,6 +14,7 @@ export function ImageComparisonSlider({
   afterImage,
   beforeLabel = 'Original',
   afterLabel = 'Translated',
+  aspectRatio = 'aspect-square md:aspect-[4/3]',
 }: ImageComparisonSliderProps) {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -69,7 +71,7 @@ export function ImageComparisonSlider({
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-square md:aspect-[4/3] rounded-2xl overflow-hidden cursor-col-resize select-none"
+      className={`relative w-full ${aspectRatio} rounded-2xl overflow-hidden cursor-col-resize select-none`}
       onMouseDown={handleMouseDown}
       onTouchStart={handleMouseDown}
     >

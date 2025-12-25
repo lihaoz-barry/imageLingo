@@ -14,6 +14,15 @@ const showcaseExamples = [
     beforeLabel: 'Chinese',
     afterLabel: 'English',
     title: 'Product Packaging',
+    aspectRatio: 'aspect-square md:aspect-[4/3]',
+  },
+  {
+    before: '/images/showcase/menu-en.png',
+    after: '/images/showcase/menu-fr.jpg',
+    beforeLabel: 'English',
+    afterLabel: 'French',
+    title: 'Restaurant Menus',
+    aspectRatio: 'aspect-square md:aspect-[4/3]',
   },
 ];
 
@@ -102,6 +111,7 @@ export function UploadZoneWithShowcase({ onFilesSelected, hasImages }: UploadZon
               afterImage={showcaseExamples[currentExample].after}
               beforeLabel={showcaseExamples[currentExample].beforeLabel}
               afterLabel={showcaseExamples[currentExample].afterLabel}
+              aspectRatio={showcaseExamples[currentExample].aspectRatio}
             />
           </div>
 
