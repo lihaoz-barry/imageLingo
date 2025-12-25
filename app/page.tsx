@@ -396,18 +396,31 @@ export default function Home() {
     ));
   };
 
-  const handleDownload = (imageId: string, variationId: string) => {
+  const handleDownload = async (imageId: string, variationId: string) => {
     const result = results.find((r) => r.id === imageId);
     if (result) {
       const variation = result.variations.find(v => v.id === variationId);
       if (variation) {
-        // In a real app, this would download the actual processed image
-        const link = document.createElement('a');
-        link.href = variation.url;
-        link.download = `localized_${result.originalName}_v${variation.variationNumber}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const fileName = `localized_${result.originalName}_v${variation.variationNumber}.png`;
+        try {
+          // Fetch as blob to bypass cross-origin download restrictions
+          const response = await fetch(variation.url);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+          console.error('Download failed:', error);
+          // Fallback: open in new tab
+          window.open(variation.url, '_blank');
+        }
       }
     }
   };
