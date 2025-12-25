@@ -19,19 +19,7 @@ import { Footer } from '@/components/Footer';
 // Default project name for translations
 const DEFAULT_PROJECT_NAME = 'Translations';
 
-const languageNames: { [key: string]: string } = {
-  'auto': 'Auto',
-  'en': 'English',
-  'es': 'Spanish',
-  'fr': 'French',
-  'de': 'German',
-  'zh': 'Chinese',
-  'ja': 'Japanese',
-  'ko': 'Korean',
-  'pt': 'Portuguese',
-  'ru': 'Russian',
-  'ar': 'Arabic',
-};
+import { LANGUAGE_NAMES } from '@/lib/languages';
 
 const COST_PER_IMAGE = 1; // 1 token per image variation
 
@@ -157,13 +145,13 @@ export default function Home() {
           images: [{
             id: item.id,
             originalName: item.input_image?.original_filename || 'image',
-            sourceLanguage: languageNames[item.source_language] || item.source_language || 'Auto',
-            targetLanguage: languageNames[item.target_language] || item.target_language || 'Unknown',
+            sourceLanguage: LANGUAGE_NAMES[item.source_language] || item.source_language || 'Auto',
+            targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
             originalUrl: item.input_image?.url || '',
             processedUrl: item.output_image?.url || '',
           }],
-          sourceLanguage: languageNames[item.source_language] || item.source_language || 'Auto',
-          targetLanguage: languageNames[item.target_language] || item.target_language || 'Unknown',
+          sourceLanguage: LANGUAGE_NAMES[item.source_language] || item.source_language || 'Auto',
+          targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
           tokensUsed: item.tokens_used || 1,
         }));
         setHistory(historyItems);
@@ -350,8 +338,8 @@ export default function Home() {
       const newResult: ProcessedImageWithVariations = {
         id: imageFile.id,
         originalName: imageFile.name,
-        sourceLanguage: languageNames[sourceLanguage] || 'Auto',
-        targetLanguage: languageNames[targetLanguage] || 'Spanish',
+        sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
+        targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
         originalUrl: translateData.input_url || imageFile.preview,
         variations: [
           {
