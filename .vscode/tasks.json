@@ -25,6 +25,28 @@
                 "reveal": "always",
                 "panel": "dedicated"
             }
+        },
+        {
+            "label": "Start Demo Server",
+            "type": "npm",
+            "script": "dev:demo",
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": {
+                    "regexp": "^[\\t\\s]*✓ Ready in [0-9]+ms$"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*Starting...*",
+                    "endsPattern": ".*Ready in.*"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
         }
     ]
 }
