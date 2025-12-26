@@ -35,6 +35,9 @@ const languageNames: { [key: string]: string } = {
 
 const COST_PER_IMAGE = 1; // 1 token per image variation
 
+// Demo mode check
+const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
 export default function Home() {
   const { user } = useAuth();
 
@@ -62,6 +65,12 @@ export default function Home() {
 
   // Fetch credits, history, and preferences when user logs in
   useEffect(() => {
+    if (isDemoMode) {
+      // In demo mode, set mock values
+      setTokenBalance(100);
+      setPreferencesLoaded(true);
+      return;
+    }
     if (user) {
       fetchCredits();
       fetchHistory();
@@ -254,15 +263,15 @@ export default function Home() {
   };
 
   const handleProcess = async () => {
-    // Check if user is logged in
-    if (!user) {
+    // Check if user is logged in (in demo mode, user is always "logged in")
+    if (!user && !isDemoMode) {
       setIsAuthOpen(true);
       return;
     }
 
     const totalCost = images.length * variationsPerImage * COST_PER_IMAGE;
 
-    if (tokenBalance < totalCost) {
+    if (tokenBalance < totalCost && !isDemoMode) {
       alert(`Insufficient tokens! You need ${totalCost} tokens but only have ${tokenBalance}. Click on your token balance to add more.`);
       return;
     }
@@ -271,6 +280,57 @@ export default function Home() {
     setProgress(0);
     setResults([]);
     setProgressStatus('Initializing...');
+
+    // Demo mode: simulate processing without API calls
+    if (isDemoMode) {
+      const imageFile = images[0];
+      if (!imageFile) {
+        setIsProcessing(false);
+        return;
+      }
+
+      // Simulate progress with delays
+      const simulateProgress = async () => {
+        const steps = [
+          { progress: 10, status: 'Uploading image...', delay: 300 },
+          { progress: 25, status: 'Analyzing image content...', delay: 500 },
+          { progress: 45, status: 'Detecting text regions...', delay: 600 },
+          { progress: 65, status: 'Translating text...', delay: 700 },
+          { progress: 85, status: 'Generating localized image...', delay: 500 },
+          { progress: 100, status: 'Translation complete!', delay: 300 },
+        ];
+
+        for (const step of steps) {
+          await new Promise(resolve => setTimeout(resolve, step.delay));
+          setProgress(step.progress);
+          setProgressStatus(step.status);
+        }
+      };
+
+      await simulateProgress();
+
+      // Create mock result using showcase images
+      const mockResult: ProcessedImageWithVariations = {
+        id: imageFile.id,
+        originalName: imageFile.name,
+        sourceLanguage: languageNames[sourceLanguage] || 'Chinese',
+        targetLanguage: languageNames[targetLanguage] || 'English',
+        originalUrl: imageFile.preview,
+        variations: [
+          {
+            id: `${imageFile.id}-var-0`,
+            url: '/images/showcase/product-en.jpg', // Use existing showcase image
+            variationNumber: 1,
+          },
+        ],
+        selectedVariationId: `${imageFile.id}-var-0`,
+      };
+
+      setResults([mockResult]);
+      setTokenBalance(prev => Math.max(0, prev - totalCost));
+      setIsProcessing(false);
+      return;
+    }
 
     try {
       // Ensure we have a project
