@@ -23,11 +23,14 @@ import { LANGUAGE_NAMES } from '@/lib/languages';
 
 const COST_PER_IMAGE = 1; // 1 token per image variation
 
+import { ShowcaseModal } from '@/components/ShowcaseModal';
+
 export default function Home() {
   const { user } = useAuth();
 
   // State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isShowcaseOpen, setIsShowcaseOpen] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
@@ -523,6 +526,8 @@ export default function Home() {
           <UploadZoneWithShowcase
             onFilesSelected={handleFilesSelected}
             hasImages={images.length > 0}
+            isShowcaseOpen={isShowcaseOpen}
+            setIsShowcaseOpen={setIsShowcaseOpen}
           />
 
           <ImageThumbnails images={images} onRemove={handleRemoveImage} />
@@ -559,6 +564,11 @@ export default function Home() {
       </main>
 
       <Footer />
+
+      <ShowcaseModal
+        isOpen={isShowcaseOpen}
+        onClose={() => setIsShowcaseOpen(false)}
+      />
     </div>
   );
 }
