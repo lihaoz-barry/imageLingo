@@ -23,12 +23,12 @@ export function FeedbackButton() {
   const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState("");
 
-  // Auto-fill email when user is logged in
+  // Auto-fill email when user is logged in or dialog opens
   useEffect(() => {
-    if (user?.email) {
+    if (user?.email && !email) {
       setEmail(user.email);
     }
-  }, [user]);
+  }, [user, email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,8 +62,10 @@ export function FeedbackButton() {
       setIsOpen(false);
       // Reset form
       setFeedback("");
-      // Reset email to user's email if logged in, otherwise empty
-      setEmail(user?.email || "");
+      // Keep email if user is logged in, otherwise clear it
+      if (!user?.email) {
+        setEmail("");
+      }
     } catch (error) {
       console.error("Error submitting feedback:", error);
       toast.error(
