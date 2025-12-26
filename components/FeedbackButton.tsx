@@ -39,8 +39,8 @@ export function FeedbackButton() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: name.trim() || undefined,
-          email: email.trim() || undefined,
+          ...(name.trim() && { name: name.trim() }),
+          ...(email.trim() && { email: email.trim() }),
           feedback: feedback.trim(),
         }),
       });
