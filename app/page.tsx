@@ -14,7 +14,9 @@ import { CostCalculator } from '@/components/CostCalculator';
 import { ResultsGridWithVariations, type ProcessedImageWithVariations } from '@/components/ResultsGridWithVariations';
 import { HistoryPanel, type HistoryItem } from '@/components/HistoryPanel';
 import { BillingPanel } from '@/components/BillingPanel';
+import { BetaFeedbackPanel } from '@/components/BetaFeedbackPanel';
 import { Footer } from '@/components/Footer';
+import { IS_BETA } from '@/lib/config';
 
 // Default project name for translations
 const DEFAULT_PROJECT_NAME = 'Translations';
@@ -550,14 +552,24 @@ export default function Home() {
         onDeleteHistory={handleDeleteHistory}
       />
 
-      <BillingPanel
-        isOpen={isBillingOpen}
-        onClose={() => setIsBillingOpen(false)}
-        currentTokens={tokenBalance}
-        onPurchaseTokens={handlePurchaseTokens}
-        currentPlan={currentPlan}
-        onUpgradePlan={handleUpgradePlan}
-      />
+      {/* Conditionally show Beta Feedback Panel or Billing Panel based on IS_BETA flag */}
+      {IS_BETA ? (
+        <BetaFeedbackPanel
+          isOpen={isBillingOpen}
+          onClose={() => setIsBillingOpen(false)}
+          currentTokens={tokenBalance}
+          userEmail={user?.email}
+        />
+      ) : (
+        <BillingPanel
+          isOpen={isBillingOpen}
+          onClose={() => setIsBillingOpen(false)}
+          currentTokens={tokenBalance}
+          onPurchaseTokens={handlePurchaseTokens}
+          currentPlan={currentPlan}
+          onUpgradePlan={handleUpgradePlan}
+        />
+      )}
 
       <main className="max-w-6xl mx-auto px-8 pb-16">
         {/* Main Upload Card */}
