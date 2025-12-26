@@ -11,7 +11,7 @@ interface LocalizeData {
 }
 
 class ImageLingoAPI {
-    async localize(_data: LocalizeData) {
+    async localize() {
         return {
             status: 'success',
             message: 'Image localization initiated (placeholder)',
@@ -34,7 +34,7 @@ const api = new ImageLingoAPI();
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const result = await api.localize(body);
+        const result = await api.localize();
         return NextResponse.json(result);
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Internal server error';

@@ -6,6 +6,7 @@ interface ImageComparisonSliderProps {
   afterImage: string;
   beforeLabel?: string;
   afterLabel?: string;
+  aspectRatio?: string;
 }
 
 export function ImageComparisonSlider({
@@ -13,6 +14,7 @@ export function ImageComparisonSlider({
   afterImage,
   beforeLabel = 'Original',
   afterLabel = 'Translated',
+  aspectRatio = 'aspect-square md:aspect-[4/3]',
 }: ImageComparisonSliderProps) {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -69,7 +71,7 @@ export function ImageComparisonSlider({
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-video rounded-2xl overflow-hidden cursor-col-resize select-none"
+      className={`relative w-full ${aspectRatio} rounded-2xl overflow-hidden cursor-col-resize select-none`}
       onMouseDown={handleMouseDown}
       onTouchStart={handleMouseDown}
     >
@@ -78,12 +80,9 @@ export function ImageComparisonSlider({
         <img
           src={afterImage}
           alt={afterLabel}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover bg-black/20"
           draggable={false}
         />
-        <div className="absolute top-4 right-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#00d4ff]/90 text-white text-sm shadow-lg">
-          {afterLabel}
-        </div>
       </div>
 
       {/* Before Image (Clipped) */}
@@ -94,13 +93,18 @@ export function ImageComparisonSlider({
         <img
           src={beforeImage}
           alt={beforeLabel}
-          className="w-full h-full object-cover"
-          style={{ width: containerWidth ? `${containerWidth}px` : '100%' }}
+          className="h-full object-cover bg-black/20"
+          style={{ width: containerWidth ? `${containerWidth}px` : '100%', maxWidth: 'none' }}
           draggable={false}
         />
-        <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#8b5cf6]/90 text-white text-sm shadow-lg">
-          {beforeLabel}
-        </div>
+      </div>
+
+      {/* Labels (Always Visible) */}
+      <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#8b5cf6]/90 text-white text-xs font-bold shadow-lg z-20 pointer-events-none">
+        {beforeLabel}
+      </div>
+      <div className="absolute top-4 right-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#00d4ff]/90 text-white text-xs font-bold shadow-lg z-20 pointer-events-none">
+        {afterLabel}
       </div>
 
       {/* Slider Handle */}

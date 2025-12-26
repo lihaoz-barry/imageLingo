@@ -15,12 +15,10 @@ export interface AuthResult {
  * Authenticate a request using Supabase JWT token
  * Returns the user ID if authenticated, or an error response
  */
-export async function authenticateRequest(
-  req: NextRequest
-): Promise<AuthResult> {
+export async function authenticateRequest(): Promise<AuthResult> {
   try {
     const supabase = await createSupabaseServerClient();
-    
+
     if (!supabase) {
       return {
         authenticated: false,
@@ -60,9 +58,9 @@ export async function authenticateRequest(
  * Returns Response with 401 if not authenticated, otherwise returns null
  */
 export async function requireAuth(
-  req: NextRequest
+  _req: NextRequest
 ): Promise<{ response: Response; userId: null } | { response: null; userId: string }> {
-  const authResult = await authenticateRequest(req);
+  const authResult = await authenticateRequest();
 
   if (!authResult.authenticated) {
     return {
