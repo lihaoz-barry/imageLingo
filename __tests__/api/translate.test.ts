@@ -15,9 +15,11 @@ vi.mock('@/lib/gemini', () => ({
   translateImage: vi.fn(),
   GeminiError: class GeminiError extends Error {
     code: string;
-    constructor(message: string, code: string) {
+    retryable: boolean;
+    constructor(message: string, code: string, retryable: boolean) {
       super(message);
       this.code = code;
+      this.retryable = retryable;
     }
   },
 }));
@@ -449,7 +451,7 @@ describe('POST /api/translate', () => {
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
 
     // Mock Gemini rate limit error
-    const rateLimitError = new GeminiError('Rate limit exceeded', 'RATE_LIMIT');
+    const rateLimitError = new GeminiError('Rate limit exceeded', 'RATE_LIMIT', true);
     vi.mocked(translateImage).mockRejectedValue(rateLimitError);
 
     const req = new NextRequest('http://localhost:3000/api/translate', {
