@@ -9,9 +9,9 @@ export const IS_BETA = true;
 
 /**
  * Support email for beta feedback and credit requests
- * TODO: Update this to your actual support email
+ * Uses NEXT_PUBLIC_FEEDBACK_EMAIL env var if set, otherwise defaults to feedback@imagelingo.com
  */
-export const SUPPORT_EMAIL = 'feedback@imagelingo.com';
+export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'feedback@imagelingo.com';
 
 /**
  * Maximum credits a user can request during beta

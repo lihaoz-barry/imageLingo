@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Mail, Sparkles, Gift, Copy, Check, MessageSquare } from 'lucide-react';
 import { SUPPORT_EMAIL, BETA_MAX_CREDITS } from '@/lib/config';
+import { FeedbackDialog } from './FeedbackDialog';
 
 interface BetaFeedbackPanelProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface BetaFeedbackPanelProps {
 
 export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }: BetaFeedbackPanelProps) {
     const [copied, setCopied] = useState(false);
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
     if (!isOpen) return null;
 
@@ -128,7 +130,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
 
                         {/* Feedback Button */}
                         <button
-                            onClick={() => { }}
+                            onClick={() => setIsFeedbackOpen(true)}
                             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-[#9ca3af] hover:text-white"
                         >
                             <MessageSquare className="w-4 h-4" />
@@ -137,6 +139,9 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
                     </div>
                 </div>
             </div>
+
+            {/* Shared Feedback Dialog */}
+            <FeedbackDialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen} />
         </>
     );
 }

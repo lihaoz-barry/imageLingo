@@ -1,80 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { FeedbackDialog } from "./FeedbackDialog";
 
 export function FeedbackButton() {
-  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [email, setEmail] = useState("");
-  const [feedback, setFeedback] = useState("");
-
-  // Auto-fill email when user is logged in or dialog opens
-  useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
-    }
-  }, [user, email]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!feedback.trim()) {
-      toast.error("Please enter your feedback");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...(email.trim() && { email: email.trim() }),
-          feedback: feedback.trim(),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send feedback");
-      }
-
-      toast.success("Thank you for your feedback!");
-      setIsOpen(false);
-      // Reset form
-      setFeedback("");
-      // Keep email if user is logged in, otherwise clear it
-      if (!user?.email) {
-        setEmail("");
-      }
-    } catch (error) {
-      console.error("Error submitting feedback:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to send feedback"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <>
@@ -89,67 +20,7 @@ export function FeedbackButton() {
       </button>
 
       {/* Feedback Dialog */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="bg-[#1a1a2e] border-white/20 text-white sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl bg-gradient-to-r from-[#00d4ff] via-[#8b5cf6] to-[#c026d3] bg-clip-text text-transparent">
-              Send Feedback
-            </DialogTitle>
-            <DialogDescription className="text-[#9ca3af]">
-              We&apos;d love to hear your thoughts! Share your feedback with us.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white">
-                Email (Optional)
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-[#9ca3af]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="feedback" className="text-white">
-                Feedback <span className="text-[#c026d3]">*</span>
-              </Label>
-              <Textarea
-                id="feedback"
-                placeholder="Share your thoughts, suggestions, or report issues..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-[#9ca3af] min-h-[120px]"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsOpen(false)}
-                disabled={isSubmitting}
-                className="border-white/20 bg-white/5 text-white hover:bg-white/10"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-[#00d4ff] via-[#8b5cf6] to-[#c026d3] text-white hover:opacity-90 transition-opacity"
-              >
-                {isSubmitting ? "Sending..." : "Send Feedback"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <FeedbackDialog open={isOpen} onOpenChange={setIsOpen} />
     </>
   );
 }

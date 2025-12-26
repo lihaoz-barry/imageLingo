@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     // Initialize Resend
     const resend = new Resend(resendApiKey);
 
-    // Get recipient email from environment variable or use placeholder
-    const recipientEmail = process.env.FEEDBACK_EMAIL || 'feedback@imagelingo.com';
+    // Get recipient email from environment variable or use default
+    const recipientEmail = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'feedback@imagelingo.com';
     
     // Get sender email from environment variable or use default
     const senderEmail = process.env.FEEDBACK_FROM_EMAIL || 'onboarding@resend.dev';
