@@ -28,8 +28,8 @@ export function LanguageSelector({
   };
 
   return (
-    <div className="flex items-center justify-center gap-4 mb-8">
-      <div className="flex items-center gap-4 px-6 py-3 rounded-full backdrop-blur-md bg-white/5 border border-white/10 z-20">
+    <div className="flex items-center justify-center gap-2 sm:gap-4 mb-4 sm:mb-8">
+      <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-2 sm:py-3 rounded-full backdrop-blur-md bg-white/5 border border-white/10 z-20">
 
         {/* Source Language Selector */}
         <LanguageDropdown
@@ -132,9 +132,9 @@ function LanguageDropdown({
         <ChevronDown className={`w-4 h-4 text-[#00d4ff] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - Fixed centered on mobile, absolute on desktop */}
       {isOpen && (
-        <div className="absolute top-12 left-0 w-72 max-h-96 bg-[#0f0f2a] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="fixed sm:absolute inset-x-4 sm:inset-x-auto top-1/4 sm:top-12 sm:left-0 w-auto sm:w-72 max-h-[60vh] sm:max-h-96 bg-[#0f0f2a] border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
 
           {/* Search Input */}
           <div className="p-3 border-b border-white/10 sticky top-0 bg-[#0f0f2a] z-10">
