@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, feedback } = body;
+    const { email, feedback } = body;
 
     // Validate that feedback is not empty
     if (!feedback || feedback.trim() === '') {
@@ -50,8 +50,7 @@ export async function POST(req: NextRequest) {
       subject: 'New Feedback from ImageLingo',
       html: `
         <h2>New Feedback Received</h2>
-        <p><strong>From:</strong> ${escapeHtml(name || 'Anonymous')}</p>
-        ${email ? `<p><strong>Email:</strong> ${escapeHtml(email)}</p>` : ''}
+        ${email ? `<p><strong>From:</strong> ${escapeHtml(email)}</p>` : '<p><strong>From:</strong> Anonymous</p>'}
         <p><strong>Feedback:</strong></p>
         <p>${escapeHtml(feedback).replace(/\n/g, '<br>')}</p>
         <hr>

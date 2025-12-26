@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +17,18 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 export function FeedbackButton() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState("");
+
+  // Auto-fill email when user is logged in
+  useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +47,6 @@ export function FeedbackButton() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...(name.trim() && { name: name.trim() }),
           ...(email.trim() && { email: email.trim() }),
           feedback: feedback.trim(),
         }),
@@ -54,9 +61,9 @@ export function FeedbackButton() {
       toast.success("Thank you for your feedback!");
       setIsOpen(false);
       // Reset form
-      setName("");
-      setEmail("");
       setFeedback("");
+      // Reset email to user's email if logged in, otherwise empty
+      setEmail(user?.email || "");
     } catch (error) {
       console.error("Error submitting feedback:", error);
       toast.error(
@@ -92,20 +99,6 @@ export function FeedbackButton() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-white">
-                Name (Optional)
-              </Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-[#9ca3af]"
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email" className="text-white">
                 Email (Optional)
