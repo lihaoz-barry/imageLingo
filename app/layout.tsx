@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Toaster } from "@/components/ui/sonner";
+import { FeedbackButton } from "@/components/FeedbackButton";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -114,7 +116,9 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
           {children}
+          <FeedbackButton />
         </AuthProvider>
+        <Toaster />
         <Analytics />
       </body>
     </html>
