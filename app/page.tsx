@@ -19,29 +19,19 @@ import { Footer } from '@/components/Footer';
 // Default project name for translations
 const DEFAULT_PROJECT_NAME = 'Translations';
 
-const languageNames: { [key: string]: string } = {
-  'auto': 'Auto',
-  'en': 'English',
-  'es': 'Spanish',
-  'fr': 'French',
-  'de': 'German',
-  'zh': 'Chinese',
-  'ja': 'Japanese',
-  'ko': 'Korean',
-  'pt': 'Portuguese',
-  'ru': 'Russian',
-  'ar': 'Arabic',
-};
+import { LANGUAGE_NAMES } from '@/lib/languages';
 
 const COST_PER_IMAGE = 1; // 1 token per image variation
+
+import { ShowcaseModal } from '@/components/ShowcaseModal';
 
 export default function Home() {
   const { user } = useAuth();
 
   // State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isShowcaseOpen, setIsShowcaseOpen] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
-  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
   const [targetLanguage, setTargetLanguage] = useState('en');
@@ -76,10 +66,26 @@ export default function Home() {
 
   // Save preferences when they change (only after initial load)
   useEffect(() => {
+    const savePreferences = async () => {
+      try {
+        await fetch('/api/preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source_language: sourceLanguage,
+            target_language: targetLanguage,
+            variations_per_image: variationsPerImage,
+          }),
+        });
+      } catch (error) {
+        console.error('Error saving preferences:', error);
+      }
+    };
+
     if (user && (preferencesLoaded || hasUserAdjustedPreferences)) {
       savePreferences();
     }
-  }, [sourceLanguage, targetLanguage, variationsPerImage, preferencesLoaded, hasUserAdjustedPreferences]);
+  }, [user, preferencesLoaded, hasUserAdjustedPreferences, sourceLanguage, targetLanguage, variationsPerImage]);
 
   const fetchPreferences = async () => {
     try {
@@ -97,25 +103,8 @@ export default function Home() {
     }
   };
 
-  const savePreferences = async () => {
-    try {
-      await fetch('/api/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source_language: sourceLanguage,
-          target_language: targetLanguage,
-          variations_per_image: variationsPerImage,
-        }),
-      });
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-    }
-  };
-
   const fetchCredits = async () => {
     try {
-      setIsLoadingCredits(true);
       const res = await fetch('/api/subscriptions');
       if (res.ok) {
         const data = await res.json();
@@ -126,8 +115,6 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to fetch credits:', error);
-    } finally {
-      setIsLoadingCredits(false);
     }
   };
 
@@ -157,13 +144,13 @@ export default function Home() {
           images: [{
             id: item.id,
             originalName: item.input_image?.original_filename || 'image',
-            sourceLanguage: languageNames[item.source_language] || item.source_language || 'Auto',
-            targetLanguage: languageNames[item.target_language] || item.target_language || 'Unknown',
+            sourceLanguage: LANGUAGE_NAMES[item.source_language] || item.source_language || 'Auto',
+            targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
             originalUrl: item.input_image?.url || '',
             processedUrl: item.output_image?.url || '',
           }],
-          sourceLanguage: languageNames[item.source_language] || item.source_language || 'Auto',
-          targetLanguage: languageNames[item.target_language] || item.target_language || 'Unknown',
+          sourceLanguage: LANGUAGE_NAMES[item.source_language] || item.source_language || 'Auto',
+          targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
           tokensUsed: item.tokens_used || 1,
         }));
         setHistory(historyItems);
@@ -350,8 +337,8 @@ export default function Home() {
       const newResult: ProcessedImageWithVariations = {
         id: imageFile.id,
         originalName: imageFile.name,
-        sourceLanguage: languageNames[sourceLanguage] || 'Auto',
-        targetLanguage: languageNames[targetLanguage] || 'Spanish',
+        sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
+        targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
         originalUrl: translateData.input_url || imageFile.preview,
         variations: [
           {
@@ -396,18 +383,31 @@ export default function Home() {
     ));
   };
 
-  const handleDownload = (imageId: string, variationId: string) => {
+  const handleDownload = async (imageId: string, variationId: string) => {
     const result = results.find((r) => r.id === imageId);
     if (result) {
       const variation = result.variations.find(v => v.id === variationId);
       if (variation) {
-        // In a real app, this would download the actual processed image
-        const link = document.createElement('a');
-        link.href = variation.url;
-        link.download = `localized_${result.originalName}_v${variation.variationNumber}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const fileName = `localized_${result.originalName}_v${variation.variationNumber}.png`;
+        try {
+          // Fetch as blob to bypass cross-origin download restrictions
+          const response = await fetch(variation.url);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+          console.error('Download failed:', error);
+          // Fallback: open in new tab
+          window.open(variation.url, '_blank');
+        }
       }
     }
   };
@@ -525,6 +525,8 @@ export default function Home() {
           <UploadZoneWithShowcase
             onFilesSelected={handleFilesSelected}
             hasImages={images.length > 0}
+            isShowcaseOpen={isShowcaseOpen}
+            setIsShowcaseOpen={setIsShowcaseOpen}
           />
 
           <ImageThumbnails images={images} onRemove={handleRemoveImage} />
@@ -561,6 +563,11 @@ export default function Home() {
       </main>
 
       <Footer />
+
+      <ShowcaseModal
+        isOpen={isShowcaseOpen}
+        onClose={() => setIsShowcaseOpen(false)}
+      />
     </div>
   );
 }

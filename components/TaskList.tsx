@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
 
@@ -21,11 +21,7 @@ export default function TaskList() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchTasks();
-    }, [user]);
-
-    const fetchTasks = async () => {
+    const fetchTasks = useCallback(async () => {
         if (!user) return;
 
         try {
@@ -57,7 +53,11 @@ export default function TaskList() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        fetchTasks();
+    }, [fetchTasks]);
 
     const deleteTask = async (taskId: string) => {
         if (!confirm('Delete this task?')) return;
@@ -161,9 +161,9 @@ export default function TaskList() {
                                 <div className="flex items-center gap-2">
                                     <span
                                         className={`w-2 h-2 rounded-full ${task.status === 'completed' ? 'bg-green-500' :
-                                                task.status === 'processing' ? 'bg-yellow-500 pulse' :
-                                                    task.status === 'failed' ? 'bg-red-500' :
-                                                        'bg-gray-500'
+                                            task.status === 'processing' ? 'bg-yellow-500 pulse' :
+                                                task.status === 'failed' ? 'bg-red-500' :
+                                                    'bg-gray-500'
                                             }`}
                                     ></span>
                                     <span className="text-xs text-gray-500">{formatDate(task.createdAt)}</span>

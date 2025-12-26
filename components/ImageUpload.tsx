@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
 
@@ -24,7 +24,6 @@ interface ImageUploadProps {
 }
 
 export default function ImageUpload({ onUploadComplete }: ImageUploadProps) {
-    const { user } = useAuth();
     const [isDragging, setIsDragging] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
     const [progress, setProgress] = useState<UploadProgress>({
@@ -36,17 +35,17 @@ export default function ImageUpload({ onUploadComplete }: ImageUploadProps) {
     const [targetLang, setTargetLang] = useState('English');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleDragOver = useCallback((e: React.DragEvent) => {
+    const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
-    }, []);
+    };
 
-    const handleDragLeave = useCallback((e: React.DragEvent) => {
+    const handleDragLeave = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-    }, []);
+    };
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
+    const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
 
@@ -54,7 +53,7 @@ export default function ImageUpload({ onUploadComplete }: ImageUploadProps) {
         if (files.length > 0) {
             handleFile(files[0]);
         }
-    }, []);
+    };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;

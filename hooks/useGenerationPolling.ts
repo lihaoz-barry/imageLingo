@@ -99,14 +99,14 @@ export function useGenerationPolling(
   const progress = !generation
     ? 0
     : generation.status === 'pending'
-    ? 10
-    : generation.status === 'processing'
-    ? 50
-    : generation.status === 'completed'
-    ? 100
-    : generation.status === 'failed'
-    ? 100
-    : 0;
+      ? 10
+      : generation.status === 'processing'
+        ? 50
+        : generation.status === 'completed'
+          ? 100
+          : generation.status === 'failed'
+            ? 100
+            : 0;
 
   const fetchGeneration = useCallback(async () => {
     if (!generationId) return;
@@ -217,8 +217,7 @@ export function useGenerationPolling(
  * individual polling instances or batch API for each generation ID.
  */
 export function useMultipleGenerationsPolling(
-  generationIds: string[],
-  _options: UseGenerationPollingOptions = {}
+  generationIds: string[]
 ): Map<string, GenerationPollingResult> {
   // Create initial results map based on generation IDs
   // For production, this would set up individual polling for each ID

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { translateImage, GeminiError } from '@/lib/gemini';
-import { getTranslationPrompt, PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName } from '@/lib/prompts';
+import { PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName } from '@/lib/prompts';
 
 const CREDITS_PER_TRANSLATION = 1;
 
