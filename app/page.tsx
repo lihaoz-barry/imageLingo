@@ -65,7 +65,6 @@ export default function Home() {
   }, [user]);
 
   // Save preferences when they change (only after initial load)
-  // Save preferences when they change (only after initial load)
   useEffect(() => {
     const savePreferences = async () => {
       try {
