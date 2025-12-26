@@ -53,16 +53,18 @@ export function ShowcaseModal({ isOpen, onClose }: ShowcaseModalProps) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-hidden">
+            {/* Backdrop - Glass Version Only */}
             <div
-                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                className="absolute inset-0 cursor-pointer bg-black/60 backdrop-blur-[20px]"
                 onClick={onClose}
             />
 
-            {/* Modal Container - Flex column to handle fixed footer */}
-            <div className="relative w-full max-w-2xl bg-[#0f0f2a] rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[85vh]">
-                {/* Close Button - Absolute top right */}
+            {/* Modal Container */}
+            <div className="relative w-full max-w-2xl bg-[#0f0f2a]/90 backdrop-blur-md rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-300">
+
+
+                {/* Close Button */}
                 <button
                     onClick={onClose}
                     className="absolute top-3 right-3 z-50 p-2 rounded-full bg-black/20 hover:bg-white/10 text-white/70 hover:text-white transition-colors"
@@ -76,19 +78,19 @@ export function ShowcaseModal({ isOpen, onClose }: ShowcaseModalProps) {
                     <div className="text-center mb-5">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-[#8b5cf6]/20 to-[#c026d3]/20 border border-[#8b5cf6]/30 mb-2">
                             <Sparkles className="w-3.5 h-3.5 text-[#00d4ff]" />
-                            <span className="text-xs font-medium text-[#00d4ff]">See ImageLingo in Action</span>
+                            <span className="text-xs font-medium text-[#00d4ff]">Discover ImageLingo</span>
                         </div>
                         <h3 className="text-2xl text-white font-bold mb-1">
-                            Translate & Preserve Layout
+                            Seamless Visual Localization
                         </h3>
                         <p className="text-sm text-[#9ca3af] max-w-lg mx-auto leading-relaxed">
-                            Drag the slider to see how we maintain your original design perfectly
+                            Translate text while perfectly maintaining your original design.
                         </p>
                     </div>
 
-                    {/* Compact Image Slider Area */}
-                    <div className="relative mb-5 bg-black/20 rounded-xl overflow-hidden max-w-lg mx-auto">
-                        <div className="max-h-[280px] w-full flex justify-center items-center overflow-hidden">
+                    {/* Image Slider - Enlarged */}
+                    <div className="relative mb-6 bg-black/40 rounded-xl overflow-hidden max-w-xl mx-auto border border-white/5 shadow-inner">
+                        <div className="max-h-[380px] min-h-[280px] w-full flex justify-center items-center overflow-hidden">
                             <ImageComparisonSlider
                                 beforeImage={showcaseExamples[currentExample].before}
                                 afterImage={showcaseExamples[currentExample].after}
@@ -98,15 +100,15 @@ export function ShowcaseModal({ isOpen, onClose }: ShowcaseModalProps) {
                             />
                         </div>
 
-                        {/* Example Navigation */}
+                        {/* Navigation */}
                         {showcaseExamples.length > 1 && (
-                            <div className="flex justify-center gap-2 py-2 bg-[#0f0f2a]/80 backdrop-blur">
+                            <div className="flex justify-center gap-2 py-3 bg-black/60 backdrop-blur-sm border-t border-white/5">
                                 {showcaseExamples.map((example, idx) => (
                                     <button
                                         key={idx}
                                         onClick={() => setCurrentExample(idx)}
-                                        className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wider font-semibold transition-all border ${currentExample === idx
-                                            ? 'bg-gradient-to-r from-[#8b5cf6] to-[#c026d3] text-white border-transparent'
+                                        className={`px-4 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all border ${currentExample === idx
+                                            ? 'bg-white text-black border-transparent scale-105 shadow-lg'
                                             : 'bg-white/5 text-[#9ca3af] hover:bg-white/10 border-white/10'
                                             }`}
                                     >
@@ -117,47 +119,41 @@ export function ShowcaseModal({ isOpen, onClose }: ShowcaseModalProps) {
                         )}
                     </div>
 
-                    {/* Features Grid - Very Compact */}
-                    <div className="grid grid-cols-3 gap-2">
-                        <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 text-center">
-                            <div className="w-8 h-8 mx-auto rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#c026d3] flex items-center justify-center mb-1.5">
-                                <Globe className="w-4 h-4 text-white" />
+                    {/* Features */}
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center transition-transform hover:scale-[1.02]">
+                            <div className="w-8 h-8 mx-auto rounded-full bg-[#8b5cf6]/20 flex items-center justify-center mb-2 border border-[#8b5cf6]/30">
+                                <Globe className="w-4 h-4 text-[#8b5cf6]" />
                             </div>
-                            <h4 className="text-white text-xs font-medium mb-0.5">30+ Languages</h4>
-                            <p className="text-[10px] text-[#9ca3af] leading-tight">
-                                Auto-detect & translate
-                            </p>
+                            <h4 className="text-white text-[11px] font-bold mb-0.5">30+ Languages</h4>
+                            <p className="text-[10px] text-[#9ca3af] leading-tight">Global reach</p>
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 text-center">
-                            <div className="w-8 h-8 mx-auto rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#c026d3] flex items-center justify-center mb-1.5">
-                                <LayoutGrid className="w-4 h-4 text-white" />
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center transition-transform hover:scale-[1.02]">
+                            <div className="w-8 h-8 mx-auto rounded-full bg-[#c026d3]/20 flex items-center justify-center mb-2 border border-[#c026d3]/30">
+                                <LayoutGrid className="w-4 h-4 text-[#c026d3]" />
                             </div>
-                            <h4 className="text-white text-xs font-medium mb-0.5">Layout Safe</h4>
-                            <p className="text-[10px] text-[#9ca3af] leading-tight">
-                                Preserves designs
-                            </p>
+                            <h4 className="text-white text-[11px] font-bold mb-0.5">Layout Fixed</h4>
+                            <p className="text-[10px] text-[#9ca3af] leading-tight">100% design-safe</p>
                         </div>
 
-                        <div className="p-2.5 rounded-lg bg-white/5 border border-white/5 text-center">
-                            <div className="w-8 h-8 mx-auto rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#c026d3] flex items-center justify-center mb-1.5">
-                                <Zap className="w-4 h-4 text-white" />
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-center transition-transform hover:scale-[1.02]">
+                            <div className="w-8 h-8 mx-auto rounded-full bg-[#00d4ff]/20 flex items-center justify-center mb-2 border border-[#00d4ff]/30">
+                                <Zap className="w-4 h-4 text-[#00d4ff]" />
                             </div>
-                            <h4 className="text-white text-xs font-medium mb-0.5">AI Powered</h4>
-                            <p className="text-[10px] text-[#9ca3af] leading-tight">
-                                High accuracy
-                            </p>
+                            <h4 className="text-white text-[11px] font-bold mb-0.5">AI Precision</h4>
+                            <p className="text-[10px] text-[#9ca3af] leading-tight">Smart detection</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Fixed Footer */}
-                <div className="p-4 border-t border-white/10 bg-[#0f0f2a] rounded-b-2xl">
+                {/* Footer */}
+                <div className="p-5 border-t border-white/10 bg-[#050515]/80 backdrop-blur rounded-b-2xl">
                     <button
                         onClick={onClose}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-white to-gray-200 text-[#0f0f2a] font-bold text-sm hover:translate-y-[-1px] transition-all shadow-lg hover:shadow-white/20 active:translate-y-[0px]"
+                        className="w-full py-3.5 rounded-xl bg-white text-black font-black text-sm hover:bg-gray-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-[0.98]"
                     >
-                        Get Started
+                        GET STARTED
                     </button>
                 </div>
             </div>

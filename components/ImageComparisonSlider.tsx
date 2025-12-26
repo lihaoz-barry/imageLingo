@@ -80,12 +80,9 @@ export function ImageComparisonSlider({
         <img
           src={afterImage}
           alt={afterLabel}
-          className="w-full h-full object-contain bg-black/20"
+          className="w-full h-full object-cover bg-black/20"
           draggable={false}
         />
-        <div className="absolute top-4 right-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#00d4ff]/90 text-white text-sm shadow-lg z-10">
-          {afterLabel}
-        </div>
       </div>
 
       {/* Before Image (Clipped) */}
@@ -96,13 +93,18 @@ export function ImageComparisonSlider({
         <img
           src={beforeImage}
           alt={beforeLabel}
-          className="h-full object-contain bg-black/20"
+          className="h-full object-cover bg-black/20"
           style={{ width: containerWidth ? `${containerWidth}px` : '100%', maxWidth: 'none' }}
           draggable={false}
         />
-        <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#8b5cf6]/90 text-white text-sm shadow-lg z-10">
-          {beforeLabel}
-        </div>
+      </div>
+
+      {/* Labels (Always Visible) */}
+      <div className="absolute top-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#8b5cf6]/90 text-white text-xs font-bold shadow-lg z-20 pointer-events-none">
+        {beforeLabel}
+      </div>
+      <div className="absolute top-4 right-4 px-3 py-1.5 rounded-lg backdrop-blur-md bg-[#00d4ff]/90 text-white text-xs font-bold shadow-lg z-20 pointer-events-none">
+        {afterLabel}
       </div>
 
       {/* Slider Handle */}
