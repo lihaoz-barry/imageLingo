@@ -559,10 +559,10 @@ export default function Home() {
         onUpgradePlan={handleUpgradePlan}
       />
 
-      <main className="max-w-6xl mx-auto px-8 pb-16">
+      <main className="max-w-6xl mx-auto px-4 sm:px-8 pb-16">
         {/* Main Upload Card */}
         <div
-          className="rounded-[32px] backdrop-blur-md bg-white/5 border border-white/10 p-8 md:p-12 mb-8"
+          className="rounded-2xl sm:rounded-[32px] backdrop-blur-md bg-white/5 border border-white/10 p-4 sm:p-8 md:p-12 mb-8"
           style={{
             boxShadow: '0 0 60px rgba(0, 212, 255, 0.15), 0 0 100px rgba(139, 92, 246, 0.1)',
           }}
