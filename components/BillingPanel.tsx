@@ -1,5 +1,5 @@
-import { X, CreditCard, Crown, Zap, Check, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { X, CreditCard, Crown, Zap, Check, Plus, Gift } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface BillingPanelProps {
   isOpen: boolean;
@@ -74,6 +74,57 @@ export function BillingPanel({
   onUpgradePlan,
 }: BillingPanelProps) {
   const [activeTab, setActiveTab] = useState<'subscription' | 'tokens' | 'billing'>('subscription');
+  const [betaRequestStatus, setBetaRequestStatus] = useState<'none' | 'pending' | 'approved' | 'loading'>('loading');
+  const [isRequestingBeta, setIsRequestingBeta] = useState(false);
+
+  // Fetch beta request status when panel opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchBetaRequestStatus();
+    }
+  }, [isOpen]);
+
+  const fetchBetaRequestStatus = async () => {
+    try {
+      const response = await fetch('/api/beta/request');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasRequest) {
+          setBetaRequestStatus(data.request.status);
+        } else {
+          setBetaRequestStatus('none');
+        }
+      } else {
+        setBetaRequestStatus('none');
+      }
+    } catch (error) {
+      console.error('Error fetching beta request status:', error);
+      setBetaRequestStatus('none');
+    }
+  };
+
+  const handleRequestBetaTokens = async () => {
+    setIsRequestingBeta(true);
+    try {
+      const response = await fetch('/api/beta/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (response.ok) {
+        setBetaRequestStatus('pending');
+        alert('Beta token request submitted successfully! We will review your request soon.');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to submit beta token request');
+      }
+    } catch (error) {
+      console.error('Error requesting beta tokens:', error);
+      alert('Failed to submit beta token request');
+    } finally {
+      setIsRequestingBeta(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -193,6 +244,51 @@ export function BillingPanel({
           {/* Add Tokens Tab */}
           {activeTab === 'tokens' && (
             <div className="space-y-6">
+              {/* Beta Token Request Section */}
+              <div className="p-6 rounded-2xl backdrop-blur-md bg-gradient-to-br from-[#8b5cf6]/10 to-[#c026d3]/5 border border-[#8b5cf6]/30">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#c026d3] flex items-center justify-center">
+                      <Gift className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-white text-lg font-semibold">Beta Token Program</h3>
+                      <p className="text-sm text-[#9ca3af]">Request free beta tokens to try our service</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {betaRequestStatus === 'loading' && (
+                  <p className="text-[#9ca3af] text-sm">Loading status...</p>
+                )}
+                
+                {betaRequestStatus === 'none' && (
+                  <button
+                    onClick={handleRequestBetaTokens}
+                    disabled={isRequestingBeta}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-[#8b5cf6] to-[#c026d3] hover:from-[#9d6ef7] hover:to-[#d137e4] transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isRequestingBeta ? 'Submitting...' : 'Request Beta Tokens'}
+                  </button>
+                )}
+                
+                {betaRequestStatus === 'pending' && (
+                  <div className="py-3 px-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-center">
+                    <p className="text-yellow-300 text-sm">
+                      ⏳ Request Pending - We&apos;ll review your request soon
+                    </p>
+                  </div>
+                )}
+                
+                {betaRequestStatus === 'approved' && (
+                  <div className="py-3 px-4 rounded-xl bg-green-500/10 border border-green-500/30 text-center">
+                    <p className="text-green-300 text-sm">
+                      ✓ Request Approved - Credits have been added to your account
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="p-6 rounded-2xl backdrop-blur-md bg-white/5 border border-white/10">
                 <div className="flex items-center justify-between">
                   <div>
