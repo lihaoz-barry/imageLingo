@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Clock, ArrowLeft } from 'lucide-react';
+import { BETA_CREDITS_PER_REQUEST } from '@/lib/config';
 
 /**
  * Admin Beta Requests Dashboard
@@ -81,7 +82,7 @@ export default function AdminBetaRequestsPage() {
   };
 
   const handleApprove = async (requestId: string) => {
-    if (!confirm('Are you sure you want to approve this request and grant 100 beta tokens?')) {
+    if (!confirm(`Are you sure you want to approve this request and grant ${BETA_CREDITS_PER_REQUEST} beta credits?`)) {
       return;
     }
 
@@ -92,7 +93,7 @@ export default function AdminBetaRequestsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           requestId,
-          creditsToGrant: 100,
+          creditsToGrant: BETA_CREDITS_PER_REQUEST,
         }),
       });
 

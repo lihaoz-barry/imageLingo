@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { X, Mail, Sparkles, Gift, Copy, Check, MessageSquare, Loader2, Clock, CheckCircle } from 'lucide-react';
-import { SUPPORT_EMAIL, BETA_MAX_CREDITS } from '@/lib/config';
+import { SUPPORT_EMAIL, BETA_CREDITS_PER_REQUEST } from '@/lib/config';
 import { toast } from 'sonner';
 
-const BETA_REQUEST_MESSAGE = `Hi, I would like to request ${BETA_MAX_CREDITS} free credits for the ImageLingo Beta program. Thank you!`;
+const BETA_REQUEST_MESSAGE = `Hi, I would like to request ${BETA_CREDITS_PER_REQUEST} free credits for the ImageLingo Beta program. Thank you!`;
 
 interface BetaFeedbackPanelProps {
     isOpen: boolean;
@@ -146,7 +146,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
                 ) : (
                     <>
                         <Gift className="w-5 h-5" />
-                        Request {BETA_MAX_CREDITS} Credits
+                        Request {BETA_CREDITS_PER_REQUEST} Credits
                     </>
                 )}
             </button>
