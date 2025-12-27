@@ -27,9 +27,11 @@ export const BETA_CREDITS_PER_REQUEST = 20;
 // -----------------------------------------------------------------------------
 
 /**
- * Support email for feedback and credit requests
+ * Support/feedback email address
+ * Single source of truth - reads from NEXT_PUBLIC_FEEDBACK_EMAIL env var
+ * Fallback: feedback@imagelingo.com
  */
-export const SUPPORT_EMAIL = 'feedback@imagelingo.com';
+export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'feedback@imagelingo.com';
 
 // -----------------------------------------------------------------------------
 // Processing Costs
