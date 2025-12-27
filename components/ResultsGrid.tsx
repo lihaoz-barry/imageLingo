@@ -5,6 +5,7 @@ export interface ProcessedImage {
   originalName: string;
   sourceLanguage: string;
   targetLanguage: string;
+  targetLanguageCode?: string;
   originalUrl: string;
   processedUrl: string;
 }

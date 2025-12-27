@@ -45,3 +45,17 @@ export const LANGUAGE_NAMES: { [key: string]: string } = LANGUAGES.reduce((acc, 
     acc[lang.code] = lang.name;
     return acc;
 }, {} as { [key: string]: string });
+
+// Reverse lookup: get language code from language name
+export const LANGUAGE_CODES: { [key: string]: string } = LANGUAGES.reduce((acc, lang) => {
+    acc[lang.name] = lang.code;
+    return acc;
+}, {} as { [key: string]: string });
+
+/**
+ * Get language code from language name
+ * Falls back to 'en' if not found
+ */
+export function getLanguageCode(languageName: string): string {
+    return LANGUAGE_CODES[languageName] || 'en';
+}
