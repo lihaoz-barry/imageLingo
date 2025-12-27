@@ -1,6 +1,10 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { Wallet, Sparkles } from 'lucide-react';
+
+const STORAGE_KEY = 'imagelingo_last_credits';
+const ANIMATION_DURATION_MS = 5000; // 5 seconds
 
 interface TokenButtonProps {
     tokenBalance: number;
@@ -11,8 +15,64 @@ export function TokenButton({
     tokenBalance,
     onClick,
 }: TokenButtonProps) {
-    // Always animate for demo/preview
-    const isAnimating = true;
+    const [isAnimating, setIsAnimating] = useState(false);
+    const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isFirstRender = useRef(true);
+
+    // Check for credit increase and trigger animation
+    useEffect(() => {
+        // Skip on first render to avoid animation on page load with existing balance
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            // Store initial balance
+            const storedBalance = localStorage.getItem(STORAGE_KEY);
+            if (storedBalance === null) {
+                // First time - just store, don't animate
+                localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
+            } else {
+                const lastBalance = parseInt(storedBalance, 10);
+                // If credits increased since last visit, animate!
+                if (!isNaN(lastBalance) && tokenBalance > lastBalance) {
+                    triggerAnimation();
+                }
+                // Update stored balance
+                localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
+            }
+            return;
+        }
+
+        // On subsequent balance changes, check if increased
+        const lastBalance = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+        if (tokenBalance > lastBalance) {
+            triggerAnimation();
+        }
+        // Always update stored balance
+        localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
+    }, [tokenBalance]);
+
+    const triggerAnimation = () => {
+        // Clear any existing timeout
+        if (animationTimeoutRef.current) {
+            clearTimeout(animationTimeoutRef.current);
+        }
+
+        // Start animation
+        setIsAnimating(true);
+
+        // Stop after 5 seconds
+        animationTimeoutRef.current = setTimeout(() => {
+            setIsAnimating(false);
+        }, ANIMATION_DURATION_MS);
+    };
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (animationTimeoutRef.current) {
+                clearTimeout(animationTimeoutRef.current);
+            }
+        };
+    }, []);
 
     return (
         <div className="relative">
