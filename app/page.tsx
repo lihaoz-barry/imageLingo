@@ -21,7 +21,7 @@ import { IS_BETA } from '@/lib/config';
 // Default project name for translations
 const DEFAULT_PROJECT_NAME = 'Translations';
 
-import { LANGUAGE_NAMES } from '@/lib/languages';
+import { LANGUAGE_NAMES, getLanguageCode } from '@/lib/languages';
 
 const COST_PER_IMAGE = 1; // 1 token per image variation
 
@@ -304,6 +304,7 @@ export default function Home() {
         originalName: imageFile.name,
         sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Chinese',
         targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'English',
+        targetLanguageCode: targetLanguage,
         originalUrl: imageFile.preview,
         variations: [
           {
@@ -401,6 +402,7 @@ export default function Home() {
         originalName: imageFile.name,
         sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
         targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
+        targetLanguageCode: targetLanguage,
         originalUrl: translateData.input_url || imageFile.preview,
         variations: [
           {
@@ -450,12 +452,20 @@ export default function Home() {
     if (result) {
       const variation = result.variations.find(v => v.id === variationId);
       if (variation) {
-        const fileName = `localized_${result.originalName}_v${variation.variationNumber}.png`;
         try {
           // Fetch as blob to bypass cross-origin download restrictions
           const response = await fetch(variation.url);
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
+
+          // Build filename: {originalName}_{languageCode}.{ext}
+          // Extract original filename without extension
+          const originalNameWithoutExt = result.originalName.replace(/\.[^/.]+$/, '');
+          // Get language code (fallback to 'en' if not available)
+          const langCode = result.targetLanguageCode || 'en';
+          // Get extension from blob type (e.g., 'image/png' -> 'png')
+          const ext = blob.type.split('/')[1] || 'png';
+          const fileName = `${originalNameWithoutExt}_${langCode}.${ext}`;
 
           const link = document.createElement('a');
           link.href = blobUrl;
@@ -485,6 +495,7 @@ export default function Home() {
       originalName: img.originalName,
       sourceLanguage: img.sourceLanguage,
       targetLanguage: img.targetLanguage,
+      targetLanguageCode: img.targetLanguageCode || getLanguageCode(img.targetLanguage),
       originalUrl: img.originalUrl,
       variations: [
         {

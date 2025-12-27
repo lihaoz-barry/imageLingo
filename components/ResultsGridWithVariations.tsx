@@ -13,6 +13,7 @@ export interface ProcessedImageWithVariations {
   originalName: string;
   sourceLanguage: string;
   targetLanguage: string;
+  targetLanguageCode: string;
   originalUrl: string;
   variations: ImageVariation[];
   selectedVariationId?: string;
