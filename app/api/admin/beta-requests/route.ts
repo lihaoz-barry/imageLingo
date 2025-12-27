@@ -33,20 +33,10 @@ export async function GET(req: NextRequest) {
 
     // Fetch all beta requests with user profile information
     // Order by created_at DESC to show newest first
+    // Note: Using select('*') to avoid errors if optional columns don't exist yet
     const { data: requests, error: fetchError } = await supabase
       .from('beta_requests')
-      .select(`
-        id,
-        user_id,
-        email,
-        message,
-        status,
-        credits_granted,
-        created_at,
-        updated_at,
-        approved_at,
-        approved_by
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (fetchError) {
