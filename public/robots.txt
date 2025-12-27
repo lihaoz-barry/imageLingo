@@ -6,6 +6,7 @@ Allow: /
 
 # Disallow admin or API routes if any
 Disallow: /api/
+Disallow: /admin/
 
 # Sitemap location
 Sitemap: https://imagelingo.vercel.app/sitemap.xml
