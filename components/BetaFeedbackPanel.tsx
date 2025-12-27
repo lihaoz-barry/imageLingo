@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Mail, Sparkles, Gift, Copy, Check, MessageSquare, Loader2, Clock, CheckCircle } from 'lucide-react';
 import { SUPPORT_EMAIL, BETA_CREDITS_PER_REQUEST } from '@/lib/config';
 import { toast } from 'sonner';
+import { FeedbackDialog } from './FeedbackDialog';
 
 const BETA_REQUEST_MESSAGE = `Hi, I would like to request ${BETA_CREDITS_PER_REQUEST} free credits for the ImageLingo Beta program. Thank you!`;
 
@@ -21,6 +22,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [requestStatus, setRequestStatus] = useState<RequestStatus>('none');
     const [isLoadingStatus, setIsLoadingStatus] = useState(false);
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
     // Check existing request status when panel opens
     useEffect(() => {
@@ -232,17 +234,20 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
                         {/* Request Credits Button */}
                         {renderRequestButton()}
 
-                        {/* Feedback Button */}
-                        <a
-                            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('ImageLingo Beta Feedback')}`}
-                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-[#9ca3af] hover:text-white no-underline"
+                        {/* Feedback Button - Opens FeedbackDialog */}
+                        <button
+                            onClick={() => setIsFeedbackOpen(true)}
+                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-[#9ca3af] hover:text-white"
                         >
                             <MessageSquare className="w-4 h-4" />
                             Share Feedback
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Shared Feedback Dialog */}
+            <FeedbackDialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen} />
         </>
     );
 }
