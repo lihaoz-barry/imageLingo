@@ -6,8 +6,6 @@ import { SUPPORT_EMAIL, BETA_CREDITS_PER_REQUEST } from '@/lib/config';
 import { toast } from 'sonner';
 import { FeedbackDialog } from './FeedbackDialog';
 
-const BETA_REQUEST_MESSAGE = `Hi, I would like to request ${BETA_CREDITS_PER_REQUEST} free credits for the ImageLingo Beta program. Thank you!`;
-
 interface BetaFeedbackPanelProps {
     isOpen: boolean;
     onClose: () => void;
@@ -23,6 +21,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
     const [requestStatus, setRequestStatus] = useState<RequestStatus>('none');
     const [isLoadingStatus, setIsLoadingStatus] = useState(false);
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    const [message, setMessage] = useState('');
 
     // Check existing request status when panel opens
     useEffect(() => {
@@ -58,7 +57,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    message: BETA_REQUEST_MESSAGE,
+                    message: message.trim() || null,
                 }),
             });
 
@@ -76,6 +75,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
 
             toast.success('Credit request submitted! We will review it shortly.');
             setRequestStatus('pending');
+            setMessage('');
         } catch (error) {
             console.error('Error requesting credits:', error);
             toast.error(error instanceof Error ? error.message : 'Failed to submit request');
@@ -186,7 +186,7 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
                 </div>
 
                 {/* Content */}
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-5">
 
                     {/* Current Balance */}
                     <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
@@ -199,30 +199,45 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
 
                     {/* Simple Message */}
                     <div className="text-center">
-                        <p className="text-xl text-white font-medium leading-relaxed">
-                            Request free credits for<br />
-                            <span className="text-[#00d4ff] font-bold">ImageLingo Beta</span>
+                        <p className="text-lg text-white font-medium leading-relaxed">
+                            Request <span className="text-[#00d4ff] font-bold">{BETA_CREDITS_PER_REQUEST} free credits</span> for Beta
                         </p>
                     </div>
 
+                    {/* Message Input - Only show if not already requested */}
+                    {requestStatus === 'none' && !isLoadingStatus && (
+                        <div className="space-y-2">
+                            <label className="text-sm text-[#9ca3af]">
+                                Message (optional)
+                            </label>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Tell us how you plan to use ImageLingo..."
+                                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-[#6b7280] focus:outline-none focus:border-[#8b5cf6]/50 resize-none"
+                                rows={3}
+                            />
+                        </div>
+                    )}
+
                     {/* Contact Email Display with Copy */}
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <Mail className="w-5 h-5 text-[#8b5cf6] flex-shrink-0" />
-                            <span className="text-white font-mono text-base truncate">{SUPPORT_EMAIL}</span>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <Mail className="w-4 h-4 text-[#8b5cf6] flex-shrink-0" />
+                            <span className="text-white font-mono text-sm truncate">{SUPPORT_EMAIL}</span>
                         </div>
                         <button
                             onClick={handleCopyEmail}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-xs font-medium"
                         >
                             {copied ? (
                                 <>
-                                    <Check className="w-4 h-4 text-green-400" />
+                                    <Check className="w-3 h-3 text-green-400" />
                                     <span className="text-green-400">Copied!</span>
                                 </>
                             ) : (
                                 <>
-                                    <Copy className="w-4 h-4" />
+                                    <Copy className="w-3 h-3" />
                                     <span>Copy</span>
                                 </>
                             )}

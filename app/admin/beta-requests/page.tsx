@@ -235,7 +235,6 @@ export default function AdminBetaRequestsPage() {
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Message</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Status</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Requested</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Credits</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Action</th>
                   </tr>
                 </thead>
@@ -253,13 +252,6 @@ export default function AdminBetaRequestsPage() {
                       <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
                       <td className="px-6 py-4 text-[#9ca3af] text-sm">
                         {formatDate(request.created_at)}
-                      </td>
-                      <td className="px-6 py-4">
-                        {request.credits_granted > 0 ? (
-                          <span className="text-green-300">{request.credits_granted}</span>
-                        ) : (
-                          <span className="text-[#9ca3af]">-</span>
-                        )}
                       </td>
                       <td className="px-6 py-4">
                         {request.status === 'pending' ? (
