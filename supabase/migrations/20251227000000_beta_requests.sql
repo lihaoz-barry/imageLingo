@@ -38,6 +38,8 @@ CREATE TABLE public.beta_requests (
   approved_by     text,
 
   -- Ensure one request per user
+  -- This constraint prevents duplicate requests and will cause INSERT operations
+  -- to fail with error code 23505 if a user attempts to request multiple times
   CONSTRAINT unique_user_request UNIQUE (user_id)
 );
 

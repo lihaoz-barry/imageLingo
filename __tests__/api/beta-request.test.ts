@@ -54,11 +54,11 @@ describe('POST /api/beta/request', () => {
         }),
       },
       from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn().mockResolvedValue({
-              data: { id: 'existing-request', status: 'pending' },
-              error: null,
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: '23505', message: 'duplicate key value violates unique constraint' },
             }),
           })),
         })),
@@ -101,14 +101,6 @@ describe('POST /api/beta/request', () => {
       from: vi.fn((table: string) => {
         if (table === 'beta_requests') {
           return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                maybeSingle: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: null,
-                }),
-              })),
-            })),
             insert: vi.fn(() => ({
               select: vi.fn(() => ({
                 single: vi.fn().mockResolvedValue({

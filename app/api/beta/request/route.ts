@@ -41,34 +41,9 @@ export async function POST(req: NextRequest) {
 
     const userEmail = userData.user.email;
 
-    // VALIDATION: Check if user has already made a request
-    const { data: existingRequest, error: checkError } = await supabase
-      .from('beta_requests')
-      .select('id, status')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error('Error checking existing request:', checkError);
-      return Response.json(
-        { error: 'Failed to check existing request' },
-        { status: 500 }
-      );
-    }
-
-    // ENFORCEMENT: Only one request per user
-    if (existingRequest) {
-      return Response.json(
-        { 
-          error: 'You have already submitted a beta token request',
-          status: existingRequest.status,
-        },
-        { status: 400 }
-      );
-    }
-
     // SANITIZATION: Email is already validated by Supabase Auth
     // Create the beta request with status "pending"
+    // The database unique constraint will prevent duplicate requests
     const { data: newRequest, error: insertError } = await supabase
       .from('beta_requests')
       .insert({
@@ -80,7 +55,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertError) {
-      // Handle unique constraint violation (should be rare due to check above)
+      // Handle unique constraint violation
       if (insertError.code === '23505') {
         return Response.json(
           { error: 'You have already submitted a beta token request' },

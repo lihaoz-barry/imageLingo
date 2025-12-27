@@ -91,7 +91,47 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update the beta request to approved status
+    // Get user subscription before approving
+    const { data: subscription, error: fetchSubError } = await supabase
+      .from('subscriptions')
+      .select('id, generations_limit')
+      .eq('user_id', betaRequest.user_id)
+      .single();
+
+    if (fetchSubError || !subscription) {
+      console.error('Error fetching subscription:', fetchSubError);
+      return Response.json(
+        { 
+          error: 'Cannot approve request: User subscription not found. User must have an active account.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Calculate new credit limit
+    const newLimit = subscription.generations_limit + creditsToGrant;
+
+    // Update both the beta request and subscription
+    // Using separate calls (Supabase doesn't support multi-table transactions in this way)
+    // If subscription update fails, the request won't be marked as approved
+    
+    // First, update the subscription to grant credits
+    const { error: updateSubError } = await supabase
+      .from('subscriptions')
+      .update({
+        generations_limit: newLimit,
+      })
+      .eq('user_id', betaRequest.user_id);
+
+    if (updateSubError) {
+      console.error('Error updating subscription:', updateSubError);
+      return Response.json(
+        { error: 'Failed to grant credits to user subscription' },
+        { status: 500 }
+      );
+    }
+
+    // Only mark as approved after successfully granting credits
     const { error: updateRequestError } = await supabase
       .from('beta_requests')
       .update({
@@ -104,49 +144,14 @@ export async function POST(req: NextRequest) {
 
     if (updateRequestError) {
       console.error('Error updating beta request:', updateRequestError);
+      // Note: Credits were granted but request wasn't marked approved
+      // This is a better failure mode than the reverse
       return Response.json(
-        { error: 'Failed to approve request' },
+        { 
+          error: 'Credits granted but failed to update request status',
+          warning: 'Credits were successfully granted to the user',
+        },
         { status: 500 }
-      );
-    }
-
-    // Grant credits to the user by updating their subscription
-    const { data: subscription, error: fetchSubError } = await supabase
-      .from('subscriptions')
-      .select('id, generations_limit')
-      .eq('user_id', betaRequest.user_id)
-      .single();
-
-    if (fetchSubError || !subscription) {
-      console.error('Error fetching subscription:', fetchSubError);
-      // Log this but don't fail - the request is marked approved
-      console.warn(`Could not find subscription for user ${betaRequest.user_id}`);
-      return Response.json(
-        { 
-          message: 'Request approved but failed to grant credits',
-          warning: 'User subscription not found',
-        },
-        { status: 200 }
-      );
-    }
-
-    // Add credits to user's limit
-    const newLimit = subscription.generations_limit + creditsToGrant;
-    const { error: updateSubError } = await supabase
-      .from('subscriptions')
-      .update({
-        generations_limit: newLimit,
-      })
-      .eq('user_id', betaRequest.user_id);
-
-    if (updateSubError) {
-      console.error('Error updating subscription:', updateSubError);
-      return Response.json(
-        { 
-          message: 'Request approved but failed to grant credits',
-          error: 'Failed to update user subscription',
-        },
-        { status: 200 }
       );
     }
 
