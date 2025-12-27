@@ -19,6 +19,24 @@ export function TokenButton({
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isFirstRender = useRef(true);
 
+    const triggerAnimation = () => {
+        // Clear any existing timeout
+        if (animationTimeoutRef.current) {
+            clearTimeout(animationTimeoutRef.current);
+        }
+
+        // Use queueMicrotask to defer setState and avoid synchronous update in effect
+        queueMicrotask(() => {
+            // Start animation
+            setIsAnimating(true);
+
+            // Stop after 5 seconds
+            animationTimeoutRef.current = setTimeout(() => {
+                setIsAnimating(false);
+            }, ANIMATION_DURATION_MS);
+        });
+    };
+
     // Check for credit increase and trigger animation
     useEffect(() => {
         // Skip on first render to avoid animation on page load with existing balance
@@ -49,21 +67,6 @@ export function TokenButton({
         // Always update stored balance
         localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
     }, [tokenBalance]);
-
-    const triggerAnimation = () => {
-        // Clear any existing timeout
-        if (animationTimeoutRef.current) {
-            clearTimeout(animationTimeoutRef.current);
-        }
-
-        // Start animation
-        setIsAnimating(true);
-
-        // Stop after 5 seconds
-        animationTimeoutRef.current = setTimeout(() => {
-            setIsAnimating(false);
-        }, ANIMATION_DURATION_MS);
-    };
 
     // Cleanup timeout on unmount
     useEffect(() => {

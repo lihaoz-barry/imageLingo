@@ -9,8 +9,6 @@ interface HeaderProps {
   onHistoryClick?: () => void;
   onBillingClick?: () => void;
   tokenBalance?: number;
-  /** When true, shows animation demo selector for the token button */
-  showTokenAnimationDemo?: boolean;
 }
 
 export function Header({
@@ -21,7 +19,6 @@ export function Header({
   onHistoryClick,
   onBillingClick,
   tokenBalance,
-  showTokenAnimationDemo = false,
 }: HeaderProps) {
   return (
     <header className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-8 py-4 sm:py-8 gap-4">
@@ -42,7 +39,6 @@ export function Header({
           <TokenButton
             tokenBalance={tokenBalance}
             onClick={onBillingClick}
-            showAnimationDemo={showTokenAnimationDemo}
           />
         )}
 
