@@ -32,6 +32,8 @@ interface AuthContextType {
   loading: boolean;
   isConfigured: boolean;
   isDemoMode: boolean;
+  tokenBalance: number;
+  setTokenBalance: (balance: number | ((prev: number) => number)) => void;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -43,6 +45,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isConfigured: false,
   isDemoMode: false,
+  tokenBalance: 0,
+  setTokenBalance: () => { },
   signUp: async () => ({ error: null }),
   signIn: async () => ({ error: null }),
   signOut: async () => { }
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(!isDemoMode);
   const [isConfigured] = useState(() => isDemoMode || isSupabaseConfigured());
+  const [tokenBalance, setTokenBalance] = useState(isDemoMode ? 100 : 0);
 
   useEffect(() => {
     // In demo mode, skip all Supabase initialization
@@ -94,6 +99,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, [isConfigured]);
+
+  // Subscribe to realtime credit updates
+  useEffect(() => {
+    if (isDemoMode || !user) return;
+
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    // Fetch initial credits
+    const fetchCredits = async () => {
+      try {
+        const res = await fetch('/api/subscriptions');
+        if (res.ok) {
+          const data = await res.json();
+          setTokenBalance(data.credits_balance || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch credits:', error);
+      }
+    };
+    fetchCredits();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel(`credits-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newData = payload.new as { generations_limit: number; generations_used: number };
+          const newBalance = newData.generations_limit - newData.generations_used;
+          setTokenBalance(newBalance);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const signUp = async (email: string, password: string) => {
     if (isDemoMode) {
@@ -138,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isConfigured, isDemoMode, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isConfigured, isDemoMode, tokenBalance, setTokenBalance, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

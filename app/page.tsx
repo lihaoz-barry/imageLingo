@@ -31,12 +31,11 @@ const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 import { ShowcaseModal } from '@/components/ShowcaseModal';
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, tokenBalance, setTokenBalance } = useAuth();
 
   // State
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isShowcaseOpen, setIsShowcaseOpen] = useState(false);
-  const [tokenBalance, setTokenBalance] = useState(0);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'pro' | 'enterprise'>('free');
   const [sourceLanguage, setSourceLanguage] = useState('auto');
   const [targetLanguage, setTargetLanguage] = useState('en');
@@ -55,20 +54,18 @@ export default function Home() {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [hasUserAdjustedPreferences, setHasUserAdjustedPreferences] = useState(false);
 
-  // Fetch credits, history, and preferences when user logs in
+  // Fetch history and preferences when user logs in
   useEffect(() => {
     if (isDemoMode) {
       // In demo mode, set mock values
-      setTokenBalance(100);
       setPreferencesLoaded(true);
       return;
     }
     if (user) {
-      fetchCredits();
+      fetchPlan();
       fetchHistory();
       fetchPreferences();
     } else {
-      setTokenBalance(0);
       setHistory([]);
       setPreferencesLoaded(false);
       setHasUserAdjustedPreferences(false);
@@ -114,18 +111,17 @@ export default function Home() {
     }
   };
 
-  const fetchCredits = async () => {
+  const fetchPlan = async () => {
     try {
       const res = await fetch('/api/subscriptions');
       if (res.ok) {
         const data = await res.json();
-        setTokenBalance(data.credits_balance || 0);
         if (data.subscription?.plan) {
           setCurrentPlan(data.subscription.plan as 'free' | 'pro' | 'enterprise');
         }
       }
     } catch (error) {
-      console.error('Failed to fetch credits:', error);
+      console.error('Failed to fetch plan:', error);
     }
   };
 
@@ -419,10 +415,8 @@ export default function Home() {
       // Update credits from server response
       if (typeof translateData.credits_balance === 'number') {
         setTokenBalance(translateData.credits_balance);
-      } else {
-        // Fallback: refresh credits from server
-        fetchCredits();
       }
+      // Note: Realtime subscription in AuthContext will also pick up the update
 
       setProgress(100);
       setProgressStatus('Translation complete!');
