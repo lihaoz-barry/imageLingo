@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, Sparkles } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 
 const STORAGE_KEY = 'imagelingo_last_credits';
 const ANIMATION_DURATION_MS = 5000; // 5 seconds
+
+const DEBUG_ALWAYS_ANIMATE = false;
 
 interface TokenButtonProps {
     tokenBalance: number;
@@ -15,9 +17,10 @@ export function TokenButton({
     tokenBalance,
     onClick,
 }: TokenButtonProps) {
-    const [isAnimating, setIsAnimating] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(DEBUG_ALWAYS_ANIMATE);
     const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const isFirstRender = useRef(true);
+    const lastKnownBalanceRef = useRef<number | null>(null);
+    const hasInitializedRef = useRef(false);
 
     const triggerAnimation = () => {
         // Clear any existing timeout
@@ -30,42 +33,53 @@ export function TokenButton({
             // Start animation
             setIsAnimating(true);
 
-            // Stop after 5 seconds
-            animationTimeoutRef.current = setTimeout(() => {
-                setIsAnimating(false);
-            }, ANIMATION_DURATION_MS);
+            // Stop after 5 seconds (skip if debugging)
+            if (!DEBUG_ALWAYS_ANIMATE) {
+                animationTimeoutRef.current = setTimeout(() => {
+                    setIsAnimating(false);
+                }, ANIMATION_DURATION_MS);
+            }
         });
     };
 
     // Check for credit increase and trigger animation
     useEffect(() => {
-        // Skip on first render to avoid animation on page load with existing balance
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            // Store initial balance
-            const storedBalance = localStorage.getItem(STORAGE_KEY);
-            if (storedBalance === null) {
-                // First time - just store, don't animate
-                localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
-            } else {
-                const lastBalance = parseInt(storedBalance, 10);
-                // If credits increased since last visit, animate!
-                if (!isNaN(lastBalance) && tokenBalance > lastBalance) {
-                    triggerAnimation();
-                }
-                // Update stored balance
-                localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
-            }
+        // Skip if debugging always animate
+        if (DEBUG_ALWAYS_ANIMATE) return;
+
+        // Skip if tokenBalance is 0 (not yet loaded from auth)
+        if (tokenBalance === 0) {
             return;
         }
 
-        // On subsequent balance changes, check if increased
-        const lastBalance = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
-        if (tokenBalance > lastBalance) {
+        // First time we see a real (non-zero) balance
+        if (!hasInitializedRef.current) {
+            hasInitializedRef.current = true;
+
+            // Get the stored balance from localStorage
+            const storedBalance = localStorage.getItem(STORAGE_KEY);
+
+            if (storedBalance !== null) {
+                const lastBalance = parseInt(storedBalance, 10);
+                // Only animate if credits increased since last session
+                if (!isNaN(lastBalance) && tokenBalance > lastBalance) {
+                    triggerAnimation();
+                }
+            }
+            // Store current balance and set as reference
+            localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
+            lastKnownBalanceRef.current = tokenBalance;
+            return;
+        }
+
+        // Subsequent balance changes within the same session
+        if (lastKnownBalanceRef.current !== null && tokenBalance > lastKnownBalanceRef.current) {
             triggerAnimation();
         }
-        // Always update stored balance
+
+        // Update stored balance
         localStorage.setItem(STORAGE_KEY, tokenBalance.toString());
+        lastKnownBalanceRef.current = tokenBalance;
     }, [tokenBalance]);
 
     // Cleanup timeout on unmount
@@ -77,12 +91,16 @@ export function TokenButton({
         };
     }, []);
 
+    // The glow layer is always rendered but with opacity control
+    // This prevents layout shifts when animation starts/stops
+    const showGlow = isAnimating;
+
     return (
-        <div className="relative">
+        <div className="relative inline-block">
             {/* Rainbow Wave Glow with breathing brightness */}
-            {isAnimating && (
+            {showGlow && (
                 <div
-                    className="absolute inset-[-6px] rounded-full"
+                    className="absolute inset-[-6px] rounded-full pointer-events-none"
                     style={{
                         background: 'linear-gradient(90deg, #00d4ff, #8b5cf6, #c026d3, #00d4ff, #8b5cf6, #c026d3, #00d4ff)',
                         backgroundSize: '200% 100%',
@@ -93,9 +111,9 @@ export function TokenButton({
             )}
 
             {/* Static background to cover the glow behind button */}
-            {isAnimating && (
+            {showGlow && (
                 <div
-                    className="absolute inset-0 rounded-full"
+                    className="absolute inset-0 rounded-full pointer-events-none"
                     style={{
                         background: 'linear-gradient(135deg, rgba(13, 13, 43, 0.98), rgba(45, 27, 105, 0.98))',
                     }}
@@ -110,9 +128,6 @@ export function TokenButton({
                 <Wallet className="w-4 h-4 text-[#00d4ff]" />
                 <span className="text-white text-sm sm:text-base">{tokenBalance.toLocaleString()}</span>
                 <span className="text-xs text-[#9ca3af] hidden sm:inline">tokens</span>
-                {isAnimating && (
-                    <Sparkles className="w-3 h-3 text-[#00d4ff] animate-pulse" />
-                )}
             </button>
         </div>
     );
