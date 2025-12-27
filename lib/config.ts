@@ -1,4 +1,13 @@
-// Configuration flags for ImageLingo
+// =============================================================================
+// ImageLingo Configuration
+// =============================================================================
+// Central configuration file for app-wide constants.
+// Modify these values to customize behavior across the application.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Beta Program Settings
+// -----------------------------------------------------------------------------
 
 /**
  * Beta mode flag
@@ -8,12 +17,27 @@
 export const IS_BETA = true;
 
 /**
- * Support email for beta feedback and credit requests
- * Uses NEXT_PUBLIC_FEEDBACK_EMAIL env var if set, otherwise defaults to feedback@imagelingo.com
+ * Number of credits granted per beta request
+ * This is the fixed amount users receive when their request is approved
+ */
+export const BETA_CREDITS_PER_REQUEST = 20;
+
+// -----------------------------------------------------------------------------
+// Contact & Support
+// -----------------------------------------------------------------------------
+
+/**
+ * Support/feedback email address
+ * Single source of truth - reads from NEXT_PUBLIC_FEEDBACK_EMAIL env var
+ * Fallback: feedback@imagelingo.com
  */
 export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'feedback@imagelingo.com';
 
+// -----------------------------------------------------------------------------
+// Processing Costs
+// -----------------------------------------------------------------------------
+
 /**
- * Maximum credits a user can request during beta
+ * Cost in credits per image variation processed
  */
-export const BETA_MAX_CREDITS = 30;
+export const CREDITS_PER_IMAGE = 1;

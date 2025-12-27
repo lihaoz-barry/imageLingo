@@ -118,7 +118,7 @@ export default function RootLayout({
           {children}
           <FeedbackButton />
         </AuthProvider>
-        <Toaster />
+        <Toaster position="top-center" richColors />
         <Analytics />
       </body>
     </html>
