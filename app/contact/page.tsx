@@ -27,18 +27,24 @@ export default function Contact() {
     setError('');
 
     try {
-      // Create mailto link with form data
-      const subject = encodeURIComponent(`[ImageLingo] ${formData.subject}: ${formData.name}`);
-      const body = encodeURIComponent(
-        `Name: ${formData.name}\nEmail: ${formData.email}\nSubject: ${formData.subject}\n\nMessage:\n${formData.message}`
-      );
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      window.location.href = `mailto:lihaoz0214@gmail.com?subject=${subject}&body=${body}`;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send message');
+      }
 
       setSubmitted(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
-    } catch {
-      setError('Failed to open email client. Please email us directly at lihaoz0214@gmail.com');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -76,9 +82,9 @@ export default function Contact() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-medium text-white mb-2">Email Client Opened!</h3>
+                <h3 className="text-xl font-medium text-white mb-2">Message Sent!</h3>
                 <p className="text-[#9ca3af] mb-6">
-                  Your default email client should have opened with your message. If not, please email us directly.
+                  Thank you for reaching out. We&apos;ll get back to you within 24-48 hours.
                 </p>
                 <button
                   onClick={() => setSubmitted(false)}
@@ -177,7 +183,7 @@ export default function Contact() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Opening Email...
+                      Sending...
                     </>
                   ) : (
                     <>
