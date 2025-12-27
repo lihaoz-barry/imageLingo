@@ -41,6 +41,15 @@ export async function POST(req: NextRequest) {
 
     const userEmail = userData.user.email;
 
+    // Parse optional message from request body
+    let message: string | undefined;
+    try {
+      const body = await req.json();
+      message = body.message?.trim();
+    } catch {
+      // No body or invalid JSON is fine, message is optional
+    }
+
     // SANITIZATION: Email is already validated by Supabase Auth
     // Create the beta request with status "pending"
     // The database unique constraint will prevent duplicate requests
@@ -49,6 +58,7 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: userId,
         email: userEmail,
+        message: message || null,
         status: 'pending',
       })
       .select()

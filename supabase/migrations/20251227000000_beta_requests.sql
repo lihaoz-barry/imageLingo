@@ -30,6 +30,7 @@ CREATE TABLE public.beta_requests (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   email           text NOT NULL,
+  message         text,
   status          public.beta_request_status NOT NULL DEFAULT 'pending',
   credits_granted integer DEFAULT 0,
   created_at      timestamptz NOT NULL DEFAULT NOW(),

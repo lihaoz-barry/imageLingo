@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
         id,
         user_id,
         email,
+        message,
         status,
         credits_granted,
         created_at,

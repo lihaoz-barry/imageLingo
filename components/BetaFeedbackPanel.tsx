@@ -5,6 +5,8 @@ import { X, Mail, Sparkles, Gift, Copy, Check, MessageSquare, Loader2, Clock, Ch
 import { SUPPORT_EMAIL, BETA_MAX_CREDITS } from '@/lib/config';
 import { toast } from 'sonner';
 
+const BETA_REQUEST_MESSAGE = `Hi, I would like to request ${BETA_MAX_CREDITS} free credits for the ImageLingo Beta program. Thank you!`;
+
 interface BetaFeedbackPanelProps {
     isOpen: boolean;
     onClose: () => void;
@@ -53,6 +55,9 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                body: JSON.stringify({
+                    message: BETA_REQUEST_MESSAGE,
+                }),
             });
 
             const data = await response.json();

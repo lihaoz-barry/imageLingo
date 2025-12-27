@@ -24,6 +24,7 @@ interface BetaRequest {
   id: string;
   user_id: string;
   email: string;
+  message?: string;
   display_name: string;
   status: 'pending' | 'approved' | 'rejected';
   credits_granted: number;
@@ -230,6 +231,7 @@ export default function AdminBetaRequestsPage() {
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">User</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Email</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Message</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Status</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Requested</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-[#9ca3af]">Credits</th>
@@ -244,6 +246,9 @@ export default function AdminBetaRequestsPage() {
                         <p className="text-xs text-[#9ca3af]">{request.user_id.slice(0, 8)}...</p>
                       </td>
                       <td className="px-6 py-4 text-[#9ca3af]">{request.email}</td>
+                      <td className="px-6 py-4 text-[#9ca3af] text-sm max-w-xs truncate" title={request.message || '-'}>
+                        {request.message || '-'}
+                      </td>
                       <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
                       <td className="px-6 py-4 text-[#9ca3af] text-sm">
                         {formatDate(request.created_at)}
