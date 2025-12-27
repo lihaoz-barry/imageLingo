@@ -540,6 +540,7 @@ export default function Home() {
         onHistoryClick={() => setIsHistoryOpen(true)}
         onBillingClick={() => setIsBillingOpen(true)}
         tokenBalance={tokenBalance}
+        showTokenAnimationDemo={true}
       />
 
       <AuthDialog open={isAuthOpen} onOpenChange={setIsAuthOpen} />
