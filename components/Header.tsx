@@ -1,4 +1,5 @@
-import { LogIn, User, History, Wallet } from 'lucide-react';
+import { LogIn, User, History } from 'lucide-react';
+import { TokenButton } from './TokenButton';
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -10,7 +11,15 @@ interface HeaderProps {
   tokenBalance?: number;
 }
 
-export function Header({ isLoggedIn = false, userAvatar, userEmail, onLogin, onHistoryClick, onBillingClick, tokenBalance }: HeaderProps) {
+export function Header({
+  isLoggedIn = false,
+  userAvatar,
+  userEmail,
+  onLogin,
+  onHistoryClick,
+  onBillingClick,
+  tokenBalance,
+}: HeaderProps) {
   return (
     <header className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-8 py-4 sm:py-8 gap-4">
       <div>
@@ -27,14 +36,10 @@ export function Header({ isLoggedIn = false, userAvatar, userEmail, onLogin, onH
 
       <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
         {tokenBalance !== undefined && (
-          <button
+          <TokenButton
+            tokenBalance={tokenBalance}
             onClick={onBillingClick}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full backdrop-blur-md bg-gradient-to-r from-[#8b5cf6]/20 to-[#c026d3]/20 border border-[#8b5cf6]/30 hover:from-[#8b5cf6]/30 hover:to-[#c026d3]/30 transition-all"
-          >
-            <Wallet className="w-4 h-4 text-[#00d4ff]" />
-            <span className="text-white text-sm sm:text-base">{tokenBalance.toLocaleString()}</span>
-            <span className="text-xs text-[#9ca3af] hidden sm:inline">tokens</span>
-          </button>
+          />
         )}
 
         <button

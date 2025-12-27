@@ -32,18 +32,17 @@
   0% {
     background-position: -200% center;
   }
+
   100% {
     background-position: 200% center;
   }
 }
 
 .shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s linear infinite;
 }
@@ -54,4 +53,177 @@
     linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
     linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
+}
+
+/* ===========================================
+   Token Button Glow Animations
+   =========================================== */
+
+/* Animation 1: Pulse Glow - Simple pulsing glow effect */
+@keyframes token-pulse-glow {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 5px rgba(0, 212, 255, 0.4),
+      0 0 10px rgba(0, 212, 255, 0.3),
+      0 0 20px rgba(139, 92, 246, 0.2);
+  }
+
+  50% {
+    box-shadow:
+      0 0 10px rgba(0, 212, 255, 0.8),
+      0 0 25px rgba(0, 212, 255, 0.6),
+      0 0 40px rgba(139, 92, 246, 0.4),
+      0 0 60px rgba(192, 38, 211, 0.3);
+  }
+}
+
+.token-glow-pulse {
+  animation: token-pulse-glow 1s ease-in-out infinite;
+}
+
+/* Animation 2: Spinning Border - Rotating gradient border */
+@keyframes token-spin-border {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.token-glow-spin {
+  position: relative;
+  z-index: 1;
+}
+
+.token-glow-spin::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg,
+      #00d4ff,
+      #8b5cf6,
+      #c026d3,
+      #00d4ff);
+  background-size: 300% 100%;
+  animation: token-spin-border 2s linear infinite;
+  z-index: -1;
+  filter: blur(4px);
+}
+
+.token-glow-spin::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(192, 38, 211, 0.2) 100%);
+  z-index: -1;
+}
+
+/* Animation 3: Rainbow Wave - Multi-color wave effect */
+@keyframes token-rainbow-wave {
+  0% {
+    box-shadow:
+      0 0 10px #00d4ff,
+      0 0 20px #00d4ff,
+      0 0 30px #00d4ff;
+  }
+
+  33% {
+    box-shadow:
+      0 0 10px #8b5cf6,
+      0 0 20px #8b5cf6,
+      0 0 30px #8b5cf6;
+  }
+
+  66% {
+    box-shadow:
+      0 0 10px #c026d3,
+      0 0 20px #c026d3,
+      0 0 30px #c026d3;
+  }
+
+  100% {
+    box-shadow:
+      0 0 10px #00d4ff,
+      0 0 20px #00d4ff,
+      0 0 30px #00d4ff;
+  }
+}
+
+.token-glow-rainbow {
+  animation: token-rainbow-wave 2s ease-in-out infinite;
+}
+
+/* Animation 4: Breathing Glow - Gentle expanding/contracting glow */
+@keyframes token-breathing {
+
+  0%,
+  100% {
+    box-shadow:
+      0 0 5px rgba(0, 212, 255, 0.3),
+      0 0 10px rgba(139, 92, 246, 0.2);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow:
+      0 0 15px rgba(0, 212, 255, 0.6),
+      0 0 30px rgba(139, 92, 246, 0.4),
+      0 0 45px rgba(192, 38, 211, 0.3);
+    transform: scale(1.02);
+  }
+}
+
+.token-glow-breathing {
+  animation: token-breathing 1.5s ease-in-out infinite;
+}
+
+/* Rainbow shift animation for TokenButton - smooth continuous loop */
+@keyframes rainbow-shift {
+  0% {
+    background-position: 200% 50%;
+  }
+
+  100% {
+    background-position: -200% 50%;
+  }
+}
+
+/* Pulse animation for outer glow layer */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* Rainbow breathe animation - brightness pulsing */
+@keyframes rainbow-breathe {
+
+  0%,
+  100% {
+    opacity: 0.7;
+    filter: blur(8px) brightness(1);
+  }
+
+  50% {
+    opacity: 1;
+    filter: blur(10px) brightness(1.3);
+  }
 }
