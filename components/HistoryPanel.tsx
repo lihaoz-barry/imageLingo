@@ -82,7 +82,7 @@ export function HistoryPanel({ isOpen, onClose, history, onLoadHistory, onDelete
                       <span>{item.images.length} {item.images.length === 1 ? 'image' : 'images'}</span>
                       <span>•</span>
                       <span className="text-[#00d4ff]">{item.tokensUsed} tokens</span>
-                      {item.processingMs && (
+                      {item.processingMs !== undefined && item.processingMs !== null && (
                         <>
                           <span>•</span>
                           <span className="flex items-center gap-1 text-[#8b5cf6]">

@@ -104,7 +104,7 @@ export function ResultsGridWithVariations({
                     <div className="absolute top-2 left-2 px-2 py-1 rounded-lg backdrop-blur-md bg-black/50 text-xs text-white">
                       Variation {selectedVariation.variationNumber}
                     </div>
-                    {selectedVariation.processingMs && (
+                    {selectedVariation.processingMs !== undefined && selectedVariation.processingMs !== null && (
                       <div className="absolute top-2 right-2 px-2 py-1 rounded-lg backdrop-blur-md bg-black/50 text-xs text-[#8b5cf6] flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {formatProcessingTime(selectedVariation.processingMs)}
@@ -142,7 +142,7 @@ export function ResultsGridWithVariations({
                             <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[10px] text-white">
                               #{variation.variationNumber}
                             </div>
-                            {variation.processingMs && (
+                            {variation.processingMs !== undefined && variation.processingMs !== null && (
                               <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[10px] text-[#8b5cf6] flex items-center gap-0.5">
                                 <Clock className="w-2.5 h-2.5" />
                                 {formatProcessingTime(variation.processingMs)}
