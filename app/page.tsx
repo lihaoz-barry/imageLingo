@@ -12,6 +12,7 @@ import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { VariationSelector } from '@/components/VariationSelector';
 import { CostCalculator } from '@/components/CostCalculator';
 import { ResultsGridWithVariations, type ProcessedImageWithVariations } from '@/components/ResultsGridWithVariations';
+import { ProcessingQueue, type ProcessingJob } from '@/components/ProcessingQueue';
 import { HistoryPanel, type HistoryItem } from '@/components/HistoryPanel';
 import { BillingPanel } from '@/components/BillingPanel';
 import { BetaFeedbackPanel } from '@/components/BetaFeedbackPanel';
@@ -45,6 +46,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
   const [results, setResults] = useState<ProcessedImageWithVariations[]>([]);
+  const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
@@ -318,32 +320,48 @@ export default function Home() {
       return;
     }
 
-    try {
-      // Ensure we have a project
-      const projId = await ensureProject();
-      if (!projId) {
-        throw new Error('Failed to create or fetch project');
-      }
+    // Ensure we have a project first
+    const projId = await ensureProject();
+    if (!projId) {
+      alert('Failed to create or fetch project');
+      setIsProcessing(false);
+      return;
+    }
 
-      if (images.length === 0) {
-        throw new Error('No images selected');
-      }
+    if (images.length === 0) {
+      alert('No images selected');
+      setIsProcessing(false);
+      return;
+    }
 
-      // Calculate total operations for progress tracking
-      const totalOperations = images.length * variationsPerImage;
-      let completedOperations = 0;
+    // Create initial jobs for all images
+    const initialJobs: ProcessingJob[] = images.map(img => ({
+      id: img.id,
+      imageFile: img,
+      status: 'queued' as const,
+      currentVariation: 0,
+      totalVariations: variationsPerImage,
+      progress: 0,
+    }));
 
-      // Process each image
-      for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
-        const imageFile = images[imageIndex];
-        const imageNumber = imageIndex + 1;
+    setProcessingJobs(initialJobs);
+    setProgressStatus(`Processing ${images.length} images...`);
 
-        setProgressStatus(`Uploading image ${imageNumber} of ${images.length}...`);
-        setProgress(Math.round((completedOperations / totalOperations) * 100));
+    // Helper to update a specific job's status
+    const updateJob = (jobId: string, updates: Partial<ProcessingJob>) => {
+      setProcessingJobs(prev => prev.map(job =>
+        job.id === jobId ? { ...job, ...updates } : job
+      ));
+    };
 
-        // Step 1: Upload image (once per image)
+    // Process a single image job independently
+    const processImageJob = async (job: ProcessingJob) => {
+      try {
+        updateJob(job.id, { status: 'uploading', progress: 5 });
+
+        // Step 1: Upload image
         const formData = new FormData();
-        formData.append('file', imageFile.file);
+        formData.append('file', job.imageFile.file);
         formData.append('project_id', projId);
 
         const uploadRes = await fetch('/api/images', {
@@ -353,19 +371,21 @@ export default function Home() {
 
         if (!uploadRes.ok) {
           const error = await uploadRes.json();
-          throw new Error(error.error || `Failed to upload image ${imageNumber}`);
+          throw new Error(error.error || 'Failed to upload image');
         }
 
         const { image: uploadedImage } = await uploadRes.json();
+        updateJob(job.id, { status: 'processing', progress: 15 });
 
         // Generate variations for this image
         const variations: { id: string; url: string; variationNumber: number }[] = [];
 
         for (let varIndex = 0; varIndex < variationsPerImage; varIndex++) {
           const variationNumber = varIndex + 1;
-          setProgressStatus(
-            `Processing image ${imageNumber}/${images.length}, variation ${variationNumber}/${variationsPerImage}...`
-          );
+          updateJob(job.id, {
+            currentVariation: variationNumber,
+            progress: 15 + Math.round((varIndex / variationsPerImage) * 80),
+          });
 
           // Step 2: Create generation for this variation
           const genRes = await fetch('/api/generations', {
@@ -382,7 +402,7 @@ export default function Home() {
 
           if (!genRes.ok) {
             const error = await genRes.json();
-            throw new Error(error.error || `Failed to create generation for image ${imageNumber}, variation ${variationNumber}`);
+            throw new Error(error.error || `Failed to create generation`);
           }
 
           const { generation: newGeneration } = await genRes.json();
@@ -398,14 +418,14 @@ export default function Home() {
 
           if (!translateRes.ok) {
             const error = await translateRes.json();
-            throw new Error(error.error || `Translation failed for image ${imageNumber}, variation ${variationNumber}`);
+            throw new Error(error.error || `Translation failed`);
           }
 
           const translateData = await translateRes.json();
 
           // Add this variation to the list
           variations.push({
-            id: `${imageFile.id}-var-${varIndex}`,
+            id: `${job.imageFile.id}-var-${varIndex}`,
             url: translateData.output_url || '',
             variationNumber: variationNumber,
           });
@@ -415,26 +435,43 @@ export default function Home() {
             setTokenBalance(translateData.credits_balance);
           }
 
-          completedOperations++;
-          setProgress(Math.round((completedOperations / totalOperations) * 100));
+          // Update progress after each variation
+          updateJob(job.id, {
+            progress: 15 + Math.round(((varIndex + 1) / variationsPerImage) * 80),
+          });
         }
 
         // Create result with all variations for this image
         const newResult: ProcessedImageWithVariations = {
-          id: imageFile.id,
-          originalName: imageFile.name,
+          id: job.imageFile.id,
+          originalName: job.imageFile.name,
           sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
           targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
           targetLanguageCode: targetLanguage,
-          originalUrl: uploadedImage.url || imageFile.preview,
+          originalUrl: uploadedImage.url || job.imageFile.preview,
           variations: variations,
-          selectedVariationId: `${imageFile.id}-var-0`,
+          selectedVariationId: `${job.imageFile.id}-var-0`,
         };
 
-        // Add result incrementally as each image completes
+        // Add result immediately when this job completes
         setResults(prev => [...prev, newResult]);
-      }
+        updateJob(job.id, { status: 'done', progress: 100 });
 
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        updateJob(job.id, { status: 'error', errorMessage: message, progress: 0 });
+        console.error(`Error processing ${job.imageFile.name}:`, error);
+        return { success: false, error: message };
+      }
+    };
+
+    // Fire all jobs in parallel (don't await each one individually)
+    try {
+      const jobPromises = initialJobs.map(job => processImageJob(job));
+      await Promise.all(jobPromises);
+
+      // All jobs completed
       setProgress(100);
       setProgressStatus('All translations complete!');
 
@@ -442,9 +479,6 @@ export default function Home() {
       fetchHistory();
     } catch (error) {
       console.error('Translation error:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      setProgressStatus(`Error: ${message}`);
-      alert(`Translation failed: ${message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -644,7 +678,10 @@ export default function Home() {
           </div>
 
           {isProcessing && (
-            <ProgressIndicator progress={progress} status={progressStatus} />
+            <>
+              <ProcessingQueue jobs={processingJobs} isVisible={true} />
+              <ProgressIndicator progress={progress} status={progressStatus} />
+            </>
           )}
         </div>
 
