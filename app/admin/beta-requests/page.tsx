@@ -462,10 +462,13 @@ export default function AdminDashboardPage() {
                                     value={refillAmount[request.id] || ''}
                                     onChange={(e) => {
                                       const value = parseInt(e.target.value, 10);
-                                      if (!isNaN(value) && value >= 0) {
+                                      if (!isNaN(value) && value > 0) {
                                         setRefillAmount({ ...refillAmount, [request.id]: value });
                                       } else if (e.target.value === '') {
-                                        setRefillAmount({ ...refillAmount, [request.id]: 0 });
+                                        // Remove the key when input is empty
+                                        const newAmounts = { ...refillAmount };
+                                        delete newAmounts[request.id];
+                                        setRefillAmount(newAmounts);
                                       }
                                     }}
                                     placeholder="Amount"
