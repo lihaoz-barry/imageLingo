@@ -23,9 +23,24 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
     const [message, setMessage] = useState('');
 
-    // Check existing request status when panel opens
+    // Check existing request status when panel opens (with caching)
     useEffect(() => {
         if (isOpen) {
+            // Try to load cached status first
+            const cachedStatus = localStorage.getItem('beta_request_status');
+            const cachedTimestamp = localStorage.getItem('beta_request_status_timestamp');
+            
+            if (cachedStatus && cachedTimestamp) {
+                const timestamp = parseInt(cachedTimestamp, 10);
+                const now = Date.now();
+                // Cache is valid for 5 minutes
+                if (now - timestamp < 5 * 60 * 1000) {
+                    setRequestStatus(cachedStatus as RequestStatus);
+                    return;
+                }
+            }
+            
+            // If no valid cache, fetch from API
             checkRequestStatus();
         }
     }, [isOpen]);
@@ -37,9 +52,15 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
             const data = await response.json();
 
             if (data.hasRequest && data.request) {
-                setRequestStatus(data.request.status as RequestStatus);
+                const status = data.request.status as RequestStatus;
+                setRequestStatus(status);
+                // Cache the status
+                localStorage.setItem('beta_request_status', status);
+                localStorage.setItem('beta_request_status_timestamp', Date.now().toString());
             } else {
                 setRequestStatus('none');
+                localStorage.setItem('beta_request_status', 'none');
+                localStorage.setItem('beta_request_status_timestamp', Date.now().toString());
             }
         } catch (error) {
             console.error('Failed to check request status:', error);
@@ -76,6 +97,9 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
             toast.success('Credit request submitted! We will review it shortly.');
             setRequestStatus('pending');
             setMessage('');
+            // Update cache
+            localStorage.setItem('beta_request_status', 'pending');
+            localStorage.setItem('beta_request_status_timestamp', Date.now().toString());
         } catch (error) {
             console.error('Error requesting credits:', error);
             toast.error(error instanceof Error ? error.message : 'Failed to submit request');
@@ -127,9 +151,16 @@ export function BetaFeedbackPanel({ isOpen, onClose, currentTokens, userEmail }:
 
         if (requestStatus === 'approved') {
             return (
-                <div className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold text-lg">
-                    <CheckCircle className="w-5 h-5" />
-                    Credits Approved!
+                <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold text-lg">
+                        <CheckCircle className="w-5 h-5" />
+                        Credits Approved!
+                    </div>
+                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                        <p className="text-sm text-blue-300 text-center leading-relaxed">
+                            Need more credits? Email us at <span className="font-semibold">{SUPPORT_EMAIL}</span> to request a refill.
+                        </p>
+                    </div>
                 </div>
             );
         }
