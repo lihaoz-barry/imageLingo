@@ -156,6 +156,12 @@ export default function AdminDashboardPage() {
   const handleRefill = async (requestId: string) => {
     const amount = refillAmount[requestId] || 25; // Default to 25 if not set
     
+    // Frontend validation
+    if (!Number.isInteger(amount) || amount < 1 || amount > 10000) {
+      alert('Please enter a valid token amount (1-10000)');
+      return;
+    }
+    
     if (!confirm(`Are you sure you want to refill ${amount} tokens for this user?`)) {
       return;
     }
@@ -431,12 +437,12 @@ export default function AdminDashboardPage() {
                             <p className="text-white">{request.display_name}</p>
                             <p className="text-xs text-[#9ca3af]">{request.user_id.slice(0, 8)}...</p>
                           </td>
-                          <td className="px-6 py-4 text-[#9ca3af]">{request.email}</td>
-                          <td className="px-6 py-4 text-[#9ca3af] text-sm max-w-xs truncate" title={request.message || '-'}>
+                          <td className="px-6 py-4 text-gray-300">{request.email}</td>
+                          <td className="px-6 py-4 text-gray-300 text-sm max-w-xs truncate" title={request.message || '-'}>
                             {request.message || '-'}
                           </td>
                           <td className="px-6 py-4">{getStatusBadge(request.status)}</td>
-                          <td className="px-6 py-4 text-[#9ca3af] text-sm">
+                          <td className="px-6 py-4 text-gray-300 text-sm">
                             {formatDate(request.created_at)}
                           </td>
                           <td className="px-6 py-4">
@@ -450,21 +456,40 @@ export default function AdminDashboardPage() {
                               </button>
                             ) : request.status === 'approved' ? (
                               <div className="flex items-center gap-2">
-                                <select
-                                  value={refillAmount[request.id] || 25}
-                                  onChange={(e) => setRefillAmount({ ...refillAmount, [request.id]: Number(e.target.value) })}
-                                  className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                                  disabled={refillProcessingId === request.id}
-                                >
-                                  <option value={25}>+25</option>
-                                  <option value={50}>+50</option>
-                                  <option value={100}>+100</option>
-                                  <option value={200}>+200</option>
-                                  <option value={500}>+500</option>
-                                </select>
+                                <div className="flex flex-col gap-1">
+                                  <input
+                                    type="number"
+                                    value={refillAmount[request.id] || ''}
+                                    onChange={(e) => {
+                                      const value = parseInt(e.target.value, 10);
+                                      if (!isNaN(value) && value >= 0) {
+                                        setRefillAmount({ ...refillAmount, [request.id]: value });
+                                      } else if (e.target.value === '') {
+                                        setRefillAmount({ ...refillAmount, [request.id]: 0 });
+                                      }
+                                    }}
+                                    placeholder="Amount"
+                                    min="1"
+                                    max="10000"
+                                    className="px-3 py-2 w-32 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 placeholder:text-gray-500"
+                                    disabled={refillProcessingId === request.id}
+                                  />
+                                  <div className="flex gap-1">
+                                    {[25, 50, 100, 200, 500].map((preset) => (
+                                      <button
+                                        key={preset}
+                                        onClick={() => setRefillAmount({ ...refillAmount, [request.id]: preset })}
+                                        className="px-2 py-0.5 text-xs rounded bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                                        disabled={refillProcessingId === request.id}
+                                      >
+                                        {preset}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                                 <button
                                   onClick={() => handleRefill(request.id)}
-                                  disabled={refillProcessingId === request.id}
+                                  disabled={refillProcessingId === request.id || !refillAmount[request.id] || refillAmount[request.id] < 1}
                                   className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
                                 >
                                   {refillProcessingId === request.id ? 'Refilling...' : 'Refill'}
