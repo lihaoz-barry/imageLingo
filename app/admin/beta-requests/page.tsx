@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, XCircle, Clock, ArrowLeft, MessageSquare, Gift, Mail, Eye, Archive } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ArrowLeft, MessageSquare, Gift, Mail, Eye, Archive, BarChart3 } from 'lucide-react';
 import { BETA_CREDITS_PER_REQUEST } from '@/lib/config';
+import AdminImageStats from '@/components/AdminImageStats';
 
 /**
  * Admin Dashboard
@@ -39,7 +40,7 @@ interface Feedback {
   read_at?: string;
 }
 
-type TabType = 'beta' | 'feedback';
+type TabType = 'beta' | 'feedback' | 'stats';
 
 const ADMIN_EMAIL = 'lihaoz0214@gmail.com';
 
@@ -319,6 +320,17 @@ export default function AdminDashboardPage() {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
+              activeTab === 'stats'
+                ? 'bg-gradient-to-r from-[#8b5cf6] to-[#c026d3] text-white'
+                : 'bg-white/5 text-[#9ca3af] hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Image Stats
+          </button>
         </div>
 
         {/* Beta Requests Tab */}
@@ -526,6 +538,13 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </>
+        )}
+
+        {/* Image Stats Tab */}
+        {activeTab === 'stats' && (
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
+            <AdminImageStats isAdmin={isAdmin} />
+          </div>
         )}
       </div>
     </div>
