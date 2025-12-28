@@ -1,9 +1,15 @@
 /**
  * Format milliseconds to a human-readable time string
- * Examples: 1234 -> "1.2s", 45678 -> "45.7s", 123456 -> "2.1m", 3723456 -> "1.0h"
+ * Examples: 0 -> "0.0s", 1234 -> "1.2s", 45678 -> "45.7s", 123456 -> "2.1m", 3723456 -> "1.0h"
+ * Returns empty string for null/undefined inputs
  */
 export function formatProcessingTime(ms: number | undefined | null): string {
-  if (ms === undefined || ms === null || ms < 0) {
+  if (ms === undefined || ms === null) {
+    return '';
+  }
+
+  // Handle negative values as invalid
+  if (ms < 0) {
     return '';
   }
 
