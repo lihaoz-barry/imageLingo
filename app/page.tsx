@@ -237,7 +237,7 @@ export default function Home() {
     }
 
     // Store processing time in metadata
-    if (generation.processing_ms) {
+    if (generation.processing_ms !== null && generation.processing_ms !== undefined) {
       meta.processingMs = generation.processing_ms;
     }
 

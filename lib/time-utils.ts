@@ -1,9 +1,9 @@
 /**
  * Format milliseconds to a human-readable time string
- * Examples: 1234 -> "1.2s", 45678 -> "45.7s", 123456 -> "2.1m"
+ * Examples: 1234 -> "1.2s", 45678 -> "45.7s", 123456 -> "2.1m", 3723456 -> "1.0h"
  */
 export function formatProcessingTime(ms: number | undefined | null): string {
-  if (ms === undefined || ms === null || ms <= 0) {
+  if (ms === undefined || ms === null || ms < 0) {
     return '';
   }
 
@@ -14,7 +14,13 @@ export function formatProcessingTime(ms: number | undefined | null): string {
     return `${seconds.toFixed(1)}s`;
   }
 
-  // 60 seconds or more - show minutes with 1 decimal place
+  // 60 seconds to less than 60 minutes - show minutes with 1 decimal place
   const minutes = seconds / 60;
-  return `${minutes.toFixed(1)}m`;
+  if (minutes < 60) {
+    return `${minutes.toFixed(1)}m`;
+  }
+
+  // 60 minutes or more - show hours with 1 decimal place
+  const hours = minutes / 60;
+  return `${hours.toFixed(1)}h`;
 }
