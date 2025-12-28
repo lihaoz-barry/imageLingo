@@ -325,103 +325,120 @@ export default function Home() {
         throw new Error('Failed to create or fetch project');
       }
 
-      // For now, process only the first image (single image flow)
-      // Multi-image support can be added later
-      const imageFile = images[0];
-      if (!imageFile) {
-        throw new Error('No image selected');
+      if (images.length === 0) {
+        throw new Error('No images selected');
       }
 
-      setProgress(5);
-      setProgressStatus('Uploading image...');
+      // Calculate total operations for progress tracking
+      const totalOperations = images.length * variationsPerImage;
+      let completedOperations = 0;
 
-      // Step 1: Upload image
-      const formData = new FormData();
-      formData.append('file', imageFile.file);
-      formData.append('project_id', projId);
+      // Process each image
+      for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
+        const imageFile = images[imageIndex];
+        const imageNumber = imageIndex + 1;
 
-      const uploadRes = await fetch('/api/images', {
-        method: 'POST',
-        body: formData,
-      });
+        setProgressStatus(`Uploading image ${imageNumber} of ${images.length}...`);
+        setProgress(Math.round((completedOperations / totalOperations) * 100));
 
-      if (!uploadRes.ok) {
-        const error = await uploadRes.json();
-        throw new Error(error.error || 'Failed to upload image');
-      }
+        // Step 1: Upload image (once per image)
+        const formData = new FormData();
+        formData.append('file', imageFile.file);
+        formData.append('project_id', projId);
 
-      const { image: uploadedImage } = await uploadRes.json();
-      setProgress(15);
-      setProgressStatus('Creating translation task...');
+        const uploadRes = await fetch('/api/images', {
+          method: 'POST',
+          body: formData,
+        });
 
-      // Step 2: Create generation
-      const genRes = await fetch('/api/generations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projId,
-          type: 'translation',
-          input_image_id: uploadedImage.id,
-          source_language: sourceLanguage,
-          target_language: targetLanguage,
-        }),
-      });
+        if (!uploadRes.ok) {
+          const error = await uploadRes.json();
+          throw new Error(error.error || `Failed to upload image ${imageNumber}`);
+        }
 
-      if (!genRes.ok) {
-        const error = await genRes.json();
-        throw new Error(error.error || 'Failed to create generation');
-      }
+        const { image: uploadedImage } = await uploadRes.json();
 
-      const { generation: newGeneration } = await genRes.json();
-      setProgress(20);
-      setProgressStatus('Starting translation...');
+        // Generate variations for this image
+        const variations: { id: string; url: string; variationNumber: number }[] = [];
 
-      // Step 3: Start translation
-      const translateRes = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          generation_id: newGeneration.id,
-        }),
-      });
+        for (let varIndex = 0; varIndex < variationsPerImage; varIndex++) {
+          const variationNumber = varIndex + 1;
+          setProgressStatus(
+            `Processing image ${imageNumber}/${images.length}, variation ${variationNumber}/${variationsPerImage}...`
+          );
 
-      if (!translateRes.ok) {
-        const error = await translateRes.json();
-        throw new Error(error.error || 'Translation failed');
-      }
+          // Step 2: Create generation for this variation
+          const genRes = await fetch('/api/generations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              project_id: projId,
+              type: 'translation',
+              input_image_id: uploadedImage.id,
+              source_language: sourceLanguage,
+              target_language: targetLanguage,
+            }),
+          });
 
-      const translateData = await translateRes.json();
+          if (!genRes.ok) {
+            const error = await genRes.json();
+            throw new Error(error.error || `Failed to create generation for image ${imageNumber}, variation ${variationNumber}`);
+          }
 
-      // Translation completed successfully (synchronous for now)
-      const newResult: ProcessedImageWithVariations = {
-        id: imageFile.id,
-        originalName: imageFile.name,
-        sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
-        targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
-        targetLanguageCode: targetLanguage,
-        originalUrl: translateData.input_url || imageFile.preview,
-        variations: [
-          {
-            id: `${imageFile.id}-var-0`,
+          const { generation: newGeneration } = await genRes.json();
+
+          // Step 3: Start translation (deducts 1 token per call)
+          const translateRes = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              generation_id: newGeneration.id,
+            }),
+          });
+
+          if (!translateRes.ok) {
+            const error = await translateRes.json();
+            throw new Error(error.error || `Translation failed for image ${imageNumber}, variation ${variationNumber}`);
+          }
+
+          const translateData = await translateRes.json();
+
+          // Add this variation to the list
+          variations.push({
+            id: `${imageFile.id}-var-${varIndex}`,
             url: translateData.output_url || '',
-            variationNumber: 1,
-          },
-        ],
-        selectedVariationId: `${imageFile.id}-var-0`,
-      };
+            variationNumber: variationNumber,
+          });
 
-      setResults([newResult]);
+          // Update credits from server response
+          if (typeof translateData.credits_balance === 'number') {
+            setTokenBalance(translateData.credits_balance);
+          }
 
-      // Update credits from server response
-      if (typeof translateData.credits_balance === 'number') {
-        setTokenBalance(translateData.credits_balance);
+          completedOperations++;
+          setProgress(Math.round((completedOperations / totalOperations) * 100));
+        }
+
+        // Create result with all variations for this image
+        const newResult: ProcessedImageWithVariations = {
+          id: imageFile.id,
+          originalName: imageFile.name,
+          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
+          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
+          targetLanguageCode: targetLanguage,
+          originalUrl: uploadedImage.url || imageFile.preview,
+          variations: variations,
+          selectedVariationId: `${imageFile.id}-var-0`,
+        };
+
+        // Add result incrementally as each image completes
+        setResults(prev => [...prev, newResult]);
       }
-      // Note: Realtime subscription in AuthContext will also pick up the update
 
       setProgress(100);
-      setProgressStatus('Translation complete!');
+      setProgressStatus('All translations complete!');
 
-      // Refresh history from server to get the new entry with correct URLs
+      // Refresh history from server to get the new entries with correct URLs
       fetchHistory();
     } catch (error) {
       console.error('Translation error:', error);
