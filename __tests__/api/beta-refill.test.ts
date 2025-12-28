@@ -23,6 +23,7 @@ describe('POST /api/admin/beta-refill', () => {
     const mockResponse = Response.json({ error: 'Unauthorized' }, { status: 401 });
     vi.mocked(requireAdmin).mockResolvedValue({
       response: mockResponse,
+      userId: null,
       email: null,
     });
 
@@ -41,6 +42,7 @@ describe('POST /api/admin/beta-refill', () => {
   it('should return 400 for invalid request ID', async () => {
     vi.mocked(requireAdmin).mockResolvedValue({
       response: null,
+      userId: 'admin-user-id',
       email: 'admin@example.com',
     });
 
@@ -61,6 +63,7 @@ describe('POST /api/admin/beta-refill', () => {
   it('should return 400 for invalid credits amount', async () => {
     vi.mocked(requireAdmin).mockResolvedValue({
       response: null,
+      userId: 'admin-user-id',
       email: 'admin@example.com',
     });
 
@@ -81,6 +84,7 @@ describe('POST /api/admin/beta-refill', () => {
   it('should return 404 if beta request not found', async () => {
     vi.mocked(requireAdmin).mockResolvedValue({
       response: null,
+      userId: 'admin-user-id',
       email: 'admin@example.com',
     });
 
@@ -116,6 +120,7 @@ describe('POST /api/admin/beta-refill', () => {
   it('should return 400 if request is not approved', async () => {
     vi.mocked(requireAdmin).mockResolvedValue({
       response: null,
+      userId: 'admin-user-id',
       email: 'admin@example.com',
     });
 
@@ -163,6 +168,7 @@ describe('POST /api/admin/beta-refill', () => {
 
     vi.mocked(requireAdmin).mockResolvedValue({
       response: null,
+      userId: 'admin-user-id',
       email: 'admin@example.com',
     });
 
