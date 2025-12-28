@@ -5,7 +5,7 @@ import AdminImageStats from '@/components/AdminImageStats';
 import type { ImageProcessingStats } from '@/app/api/admin/image-stats/route';
 
 // Mock fetch globally
-const mockFetch = vi.fn() as any;
+const mockFetch = vi.fn() as ReturnType<typeof vi.fn>;
 
 describe('AdminImageStats Component', () => {
   beforeEach(() => {
@@ -139,9 +139,13 @@ describe('AdminImageStats Component', () => {
 
   it('should show loading state when calculating', async () => {
     // Use a delayed promise to simulate loading
-    let resolvePromise: any;
-    const delayedPromise = new Promise((resolve) => {
-      resolvePromise = resolve;
+    const delayedPromise = new Promise<Response>((resolve) => {
+      setTimeout(() => {
+        resolve({
+          ok: true,
+          json: async () => mockStats,
+        } as Response);
+      }, 100);
     });
 
     mockFetch.mockReturnValueOnce(delayedPromise);
@@ -152,12 +156,6 @@ describe('AdminImageStats Component', () => {
     expect(
       screen.getByText('Calculating image processing statistics...')
     ).toBeInTheDocument();
-
-    // Resolve the promise to clean up
-    resolvePromise({
-      ok: true,
-      json: async () => mockStats,
-    });
   });
 
   it('should allow manual refresh', async () => {

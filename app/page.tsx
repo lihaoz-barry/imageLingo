@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { AuthDialog } from '@/components/AuthDialog';
@@ -29,6 +29,7 @@ const COST_PER_IMAGE = 1; // 1 token per image variation
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 import { ShowcaseModal } from '@/components/ShowcaseModal';
+import { useGenerationRealtime, fetchGenerationResult } from '@/hooks/useGenerationRealtime';
 
 export default function Home() {
   const { user, tokenBalance, setTokenBalance } = useAuth();
@@ -53,6 +54,19 @@ export default function Home() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [hasUserAdjustedPreferences, setHasUserAdjustedPreferences] = useState(false);
+
+  // Async processing state
+  const [pendingGenerationIds, setPendingGenerationIds] = useState<string[]>([]);
+  const [totalOperations, setTotalOperations] = useState(0);
+  const [completedOperations, setCompletedOperations] = useState(0);
+
+  // Map to track generation metadata: generationId -> { imageFileId, variationIndex, uploadedImageUrl }
+  const generationMetaRef = useRef<Map<string, {
+    imageFileId: string;
+    imageFileName: string;
+    variationIndex: number;
+    uploadedImageUrl: string;
+  }>>(new Map());
 
   // Fetch history and preferences when user logs in
   useEffect(() => {
@@ -210,6 +224,102 @@ export default function Home() {
     }
   }, [projectId]);
 
+  // Handle generation completion from realtime subscription
+  const handleGenerationComplete = useCallback(async (generation: { id: string }) => {
+    const meta = generationMetaRef.current.get(generation.id);
+    if (!meta) {
+      console.warn('No metadata found for generation:', generation.id);
+      return;
+    }
+
+    // Fetch the signed URL for the completed generation
+    const result = await fetchGenerationResult(generation.id);
+    if (!result || !result.outputUrl) {
+      console.error('Failed to fetch output URL for generation:', generation.id);
+      return;
+    }
+
+    // Remove from pending
+    setPendingGenerationIds(prev => prev.filter(id => id !== generation.id));
+
+    // Increment completed count
+    setCompletedOperations(prev => {
+      const newCount = prev + 1;
+      setProgress(Math.round((newCount / totalOperations) * 100));
+      return newCount;
+    });
+
+    // Update results - group variations by image
+    setResults(prevResults => {
+      const existingResult = prevResults.find(r => r.id === meta.imageFileId);
+
+      if (existingResult) {
+        // Add new variation to existing image result
+        return prevResults.map(r => {
+          if (r.id === meta.imageFileId) {
+            return {
+              ...r,
+              variations: [
+                ...r.variations,
+                {
+                  id: `${meta.imageFileId}-var-${meta.variationIndex}`,
+                  url: result.outputUrl!,
+                  variationNumber: meta.variationIndex + 1,
+                },
+              ].sort((a, b) => a.variationNumber - b.variationNumber),
+            };
+          }
+          return r;
+        });
+      } else {
+        // Create new result for this image
+        const newResult: ProcessedImageWithVariations = {
+          id: meta.imageFileId,
+          originalName: meta.imageFileName,
+          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
+          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
+          targetLanguageCode: targetLanguage,
+          originalUrl: meta.uploadedImageUrl,
+          variations: [{
+            id: `${meta.imageFileId}-var-${meta.variationIndex}`,
+            url: result.outputUrl!,
+            variationNumber: meta.variationIndex + 1,
+          }],
+          selectedVariationId: `${meta.imageFileId}-var-${meta.variationIndex}`,
+        };
+        return [...prevResults, newResult];
+      }
+    });
+  }, [sourceLanguage, targetLanguage, totalOperations]);
+
+  // Handle generation failure from realtime subscription
+  const handleGenerationFailed = useCallback((generation: { id: string; error_message: string | null }) => {
+    console.error('Generation failed:', generation.id, generation.error_message);
+    setPendingGenerationIds(prev => prev.filter(id => id !== generation.id));
+    setCompletedOperations(prev => {
+      const newCount = prev + 1;
+      setProgress(Math.round((newCount / totalOperations) * 100));
+      return newCount;
+    });
+  }, [totalOperations]);
+
+  // Subscribe to realtime updates for pending generations
+  useGenerationRealtime({
+    userId: user?.id || null,
+    generationIds: pendingGenerationIds,
+    onComplete: handleGenerationComplete,
+    onFailed: handleGenerationFailed,
+  });
+
+  // Check if all operations are complete
+  useEffect(() => {
+    if (isProcessing && pendingGenerationIds.length === 0 && completedOperations > 0 && completedOperations >= totalOperations) {
+      setIsProcessing(false);
+      setProgressStatus('All translations complete!');
+      fetchHistory();
+    }
+  }, [isProcessing, pendingGenerationIds.length, completedOperations, totalOperations]);
+
   const handleSourceLanguageChange = (value: string) => {
     setSourceLanguage(value);
     setHasUserAdjustedPreferences(true);
@@ -329,19 +439,16 @@ export default function Home() {
         throw new Error('No images selected');
       }
 
-      // Calculate total operations for progress tracking
-      const totalOperations = images.length * variationsPerImage;
-      let completedOperations = 0;
+      // Reset async processing state
+      const totalOps = images.length * variationsPerImage;
+      setTotalOperations(totalOps);
+      setCompletedOperations(0);
+      generationMetaRef.current.clear();
 
-      // Process all images sequentially
-      for (let imageIndex = 0; imageIndex < images.length; imageIndex++) {
-        const imageFile = images[imageIndex];
-        const imageNumber = imageIndex + 1;
+      setProgressStatus('Uploading images...');
 
-        setProgressStatus(`Uploading image ${imageNumber}/${images.length}...`);
-        setProgress(Math.round((completedOperations / totalOperations) * 100));
-
-        // Step 1: Upload image (once per image)
+      // Step 1: Upload all images in parallel
+      const uploadPromises = images.map(async (imageFile) => {
         const formData = new FormData();
         formData.append('file', imageFile.file);
         formData.append('project_id', projId);
@@ -353,97 +460,114 @@ export default function Home() {
 
         if (!uploadRes.ok) {
           const error = await uploadRes.json();
-          throw new Error(error.error || `Failed to upload image ${imageNumber}`);
+          throw new Error(error.error || `Failed to upload image ${imageFile.name}`);
         }
 
         const { image: uploadedImage } = await uploadRes.json();
 
-        // Generate multiple variations for this image
-        const variations: { id: string; url: string; variationNumber: number }[] = [];
+        // Get signed URL for the uploaded image
+        const urlRes = await fetch(`/api/images/${uploadedImage.id}`);
+        const urlData = urlRes.ok ? await urlRes.json() : null;
 
+        return {
+          imageFile,
+          uploadedImage,
+          uploadedImageUrl: urlData?.url || imageFile.preview,
+        };
+      });
+
+      const uploadedImages = await Promise.all(uploadPromises);
+      setProgressStatus('Creating translation tasks...');
+
+      // Step 2: Create all generations in parallel
+      const generationPromises: Promise<{ generationId: string; imageFileId: string; imageFileName: string; variationIndex: number; uploadedImageUrl: string }>[] = [];
+
+      for (const { imageFile, uploadedImage, uploadedImageUrl } of uploadedImages) {
         for (let varIndex = 0; varIndex < variationsPerImage; varIndex++) {
-          const varNumber = varIndex + 1;
-          setProgressStatus(`Image ${imageNumber}/${images.length}: Generating variation ${varNumber}/${variationsPerImage}...`);
+          const promise = (async () => {
+            const genRes = await fetch('/api/generations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: projId,
+                type: 'translation',
+                input_image_id: uploadedImage.id,
+                source_language: sourceLanguage,
+                target_language: targetLanguage,
+              }),
+            });
 
-          // Step 2: Create generation for each variation
-          const genRes = await fetch('/api/generations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              project_id: projId,
-              type: 'translation',
-              input_image_id: uploadedImage.id,
-              source_language: sourceLanguage,
-              target_language: targetLanguage,
-            }),
-          });
+            if (!genRes.ok) {
+              const error = await genRes.json();
+              throw new Error(error.error || `Failed to create generation`);
+            }
 
-          if (!genRes.ok) {
-            const error = await genRes.json();
-            throw new Error(error.error || `Failed to create generation for image ${imageNumber}, variation ${varNumber}`);
-          }
+            const { generation: newGeneration } = await genRes.json();
+            return {
+              generationId: newGeneration.id,
+              imageFileId: imageFile.id,
+              imageFileName: imageFile.name,
+              variationIndex: varIndex,
+              uploadedImageUrl,
+            };
+          })();
 
-          const { generation: newGeneration } = await genRes.json();
+          generationPromises.push(promise);
+        }
+      }
 
-          // Step 3: Start translation (each call deducts 1 token on backend)
+      const generations = await Promise.all(generationPromises);
+
+      // Store metadata for each generation
+      for (const gen of generations) {
+        generationMetaRef.current.set(gen.generationId, {
+          imageFileId: gen.imageFileId,
+          imageFileName: gen.imageFileName,
+          variationIndex: gen.variationIndex,
+          uploadedImageUrl: gen.uploadedImageUrl,
+        });
+      }
+
+      // Track pending generation IDs for realtime subscription
+      const generationIds = generations.map(g => g.generationId);
+      setPendingGenerationIds(generationIds);
+
+      setProgressStatus(`Processing ${totalOps} translations...`);
+
+      // Step 3: Fire all translate requests in parallel (fire-and-forget)
+      // The backend processes them and updates the generations table
+      // Our realtime subscription will catch the completion events
+      const translatePromises = generations.map(async ({ generationId }) => {
+        try {
           const translateRes = await fetch('/api/translate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              generation_id: newGeneration.id,
+              generation_id: generationId,
             }),
           });
 
+          // Even if this fails, the realtime subscription will
+          // catch the 'failed' status update
           if (!translateRes.ok) {
-            const error = await translateRes.json();
-            throw new Error(error.error || `Translation failed for image ${imageNumber}, variation ${varNumber}`);
+            console.error('Translate request failed for:', generationId);
           }
-
-          const translateData = await translateRes.json();
-
-          // Add this variation to the list
-          variations.push({
-            id: `${imageFile.id}-var-${varIndex}`,
-            url: translateData.output_url || '',
-            variationNumber: varNumber,
-          });
-
-          // Update credits from server response (will reflect cumulative deductions)
-          if (typeof translateData.credits_balance === 'number') {
-            setTokenBalance(translateData.credits_balance);
-          }
-
-          completedOperations++;
-          setProgress(Math.round((completedOperations / totalOperations) * 100));
+        } catch (error) {
+          console.error('Translate request error:', error);
         }
+      });
 
-        // Create result for this image with all its variations
-        const newResult: ProcessedImageWithVariations = {
-          id: imageFile.id,
-          originalName: imageFile.name,
-          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
-          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
-          targetLanguageCode: targetLanguage,
-          originalUrl: uploadedImage.url || imageFile.preview,
-          variations: variations,
-          selectedVariationId: variations[0]?.id || `${imageFile.id}-var-0`,
-        };
+      // Don't await - let them run in parallel
+      // The isProcessing state will be set to false when all complete via the useEffect
+      Promise.all(translatePromises).catch(console.error);
 
-        // Add result incrementally (so user sees progress)
-        setResults(prev => [...prev, newResult]);
-      }
-
-      setProgress(100);
-      setProgressStatus('All translations complete!');
-
-      // Refresh history from server to get the new entries with correct URLs
-      fetchHistory();
+      // Note: We don't set isProcessing to false here
+      // The useEffect hook watching pendingGenerationIds will handle that
     } catch (error) {
       console.error('Translation error:', error);
       const message = error instanceof Error ? error.message : 'Unknown error';
       setProgressStatus(`Error: ${message}`);
       alert(`Translation failed: ${message}`);
-    } finally {
       setIsProcessing(false);
     }
   };
