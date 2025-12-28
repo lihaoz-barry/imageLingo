@@ -53,6 +53,10 @@ export default function AdminDashboardPage() {
   const [loadingBeta, setLoadingBeta] = useState(true);
   const [betaError, setBetaError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  
+  // Refill state
+  const [refillAmount, setRefillAmount] = useState<Record<string, number>>({});
+  const [refillProcessingId, setRefillProcessingId] = useState<string | null>(null);
 
   // Feedback state
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
@@ -146,6 +150,40 @@ export default function AdminDashboardPage() {
       alert(err instanceof Error ? err.message : 'Failed to approve request');
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleRefill = async (requestId: string) => {
+    const amount = refillAmount[requestId] || 25; // Default to 25 if not set
+    
+    if (!confirm(`Are you sure you want to refill ${amount} tokens for this user?`)) {
+      return;
+    }
+
+    setRefillProcessingId(requestId);
+    try {
+      const response = await fetch('/api/admin/beta-refill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId,
+          creditsToRefill: amount,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to refill tokens');
+      }
+
+      const data = await response.json();
+      alert(`Successfully refilled ${data.creditsRefilled} tokens! Total granted: ${data.totalCreditsGranted}`);
+      fetchRequests();
+    } catch (err) {
+      console.error('Error refilling tokens:', err);
+      alert(err instanceof Error ? err.message : 'Failed to refill tokens');
+    } finally {
+      setRefillProcessingId(null);
     }
   };
 
@@ -410,6 +448,28 @@ export default function AdminDashboardPage() {
                               >
                                 {processingId === request.id ? 'Processing...' : 'Approve'}
                               </button>
+                            ) : request.status === 'approved' ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={refillAmount[request.id] || 25}
+                                  onChange={(e) => setRefillAmount({ ...refillAmount, [request.id]: Number(e.target.value) })}
+                                  className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  disabled={refillProcessingId === request.id}
+                                >
+                                  <option value={25}>+25</option>
+                                  <option value={50}>+50</option>
+                                  <option value={100}>+100</option>
+                                  <option value={200}>+200</option>
+                                  <option value={500}>+500</option>
+                                </select>
+                                <button
+                                  onClick={() => handleRefill(request.id)}
+                                  disabled={refillProcessingId === request.id}
+                                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm whitespace-nowrap"
+                                >
+                                  {refillProcessingId === request.id ? 'Refilling...' : 'Refill'}
+                                </button>
+                              </div>
                             ) : (
                               <span className="text-[#9ca3af] text-sm">
                                 {request.approved_at && `Approved ${formatDate(request.approved_at)}`}
