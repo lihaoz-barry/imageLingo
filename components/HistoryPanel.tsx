@@ -1,5 +1,6 @@
-import { X, Calendar, Languages, Download, Trash2 } from 'lucide-react';
+import { X, Calendar, Languages, Download, Trash2, Clock } from 'lucide-react';
 import { ProcessedImage } from './ResultsGrid';
+import { formatProcessingTime } from '@/lib/time-utils';
 
 export interface HistoryItem {
   id: string;
@@ -8,6 +9,7 @@ export interface HistoryItem {
   sourceLanguage: string;
   targetLanguage: string;
   tokensUsed: number;
+  processingMs?: number;
 }
 
 interface HistoryPanelProps {
@@ -80,6 +82,15 @@ export function HistoryPanel({ isOpen, onClose, history, onLoadHistory, onDelete
                       <span>{item.images.length} {item.images.length === 1 ? 'image' : 'images'}</span>
                       <span>•</span>
                       <span className="text-[#00d4ff]">{item.tokensUsed} tokens</span>
+                      {item.processingMs && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-[#8b5cf6]">
+                            <Clock className="w-3 h-3" />
+                            {formatProcessingTime(item.processingMs)}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   

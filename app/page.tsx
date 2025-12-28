@@ -60,12 +60,13 @@ export default function Home() {
   const [totalOperations, setTotalOperations] = useState(0);
   const [completedOperations, setCompletedOperations] = useState(0);
 
-  // Map to track generation metadata: generationId -> { imageFileId, variationIndex, uploadedImageUrl }
+  // Map to track generation metadata: generationId -> { imageFileId, variationIndex, uploadedImageUrl, processingMs }
   const generationMetaRef = useRef<Map<string, {
     imageFileId: string;
     imageFileName: string;
     variationIndex: number;
     uploadedImageUrl: string;
+    processingMs?: number;
   }>>(new Map());
 
   // Fetch history and preferences when user logs in
@@ -150,6 +151,7 @@ export default function Home() {
           source_language: string;
           target_language: string;
           tokens_used: number;
+          processing_ms: number;
           created_at: string;
           input_image: { id: string; original_filename: string; url: string };
           output_image: { id: string; original_filename: string; url: string };
@@ -169,10 +171,12 @@ export default function Home() {
             targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
             originalUrl: item.input_image?.url || '',
             processedUrl: item.output_image?.url || '',
+            processingMs: item.processing_ms,
           }],
           sourceLanguage: LANGUAGE_NAMES[item.source_language] || item.source_language || 'Auto',
           targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
           tokensUsed: item.tokens_used || 1,
+          processingMs: item.processing_ms,
         }));
         setHistory(historyItems);
       }
@@ -225,11 +229,16 @@ export default function Home() {
   }, [projectId]);
 
   // Handle generation completion from realtime subscription
-  const handleGenerationComplete = useCallback(async (generation: { id: string }) => {
+  const handleGenerationComplete = useCallback(async (generation: { id: string; processing_ms: number | null }) => {
     const meta = generationMetaRef.current.get(generation.id);
     if (!meta) {
       console.warn('No metadata found for generation:', generation.id);
       return;
+    }
+
+    // Store processing time in metadata
+    if (generation.processing_ms) {
+      meta.processingMs = generation.processing_ms;
     }
 
     // Fetch the signed URL for the completed generation
@@ -265,6 +274,7 @@ export default function Home() {
                   id: `${meta.imageFileId}-var-${meta.variationIndex}`,
                   url: result.outputUrl!,
                   variationNumber: meta.variationIndex + 1,
+                  processingMs: meta.processingMs,
                 },
               ].sort((a, b) => a.variationNumber - b.variationNumber),
             };
@@ -284,6 +294,7 @@ export default function Home() {
             id: `${meta.imageFileId}-var-${meta.variationIndex}`,
             url: result.outputUrl!,
             variationNumber: meta.variationIndex + 1,
+            processingMs: meta.processingMs,
           }],
           selectedVariationId: `${meta.imageFileId}-var-${meta.variationIndex}`,
         };
@@ -635,6 +646,7 @@ export default function Home() {
           id: `${img.id}-var-0`,
           url: img.processedUrl,
           variationNumber: 1,
+          processingMs: img.processingMs,
         }
       ],
       selectedVariationId: `${img.id}-var-0`,

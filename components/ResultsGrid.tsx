@@ -8,6 +8,7 @@ export interface ProcessedImage {
   targetLanguageCode?: string;
   originalUrl: string;
   processedUrl: string;
+  processingMs?: number;
 }
 
 interface ResultsGridProps {

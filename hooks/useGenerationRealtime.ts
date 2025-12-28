@@ -22,6 +22,7 @@ export interface GenerationUpdate {
     target_language: string | null;
     error_message: string | null;
     tokens_used: number | null;
+    processing_ms: number | null;
     created_at: string;
     updated_at: string;
 }
