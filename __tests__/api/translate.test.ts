@@ -93,19 +93,81 @@ describe('POST /api/translate', () => {
     });
 
     const mockSupabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { code: 'PGRST116' },
-            }),
-          })),
-        })),
+      from: vi.fn((table: string) => {
+        if (table === 'generations') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'gen-1',
+                    status: 'pending',
+                    projects: { owner_id: mockUserId },
+                    images: { storage_path: 'path/to/image.png' },
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 'gen-1', status: 'completed' },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          };
+        }
+        if (table === 'images') {
+          return {
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'output-img-1' },
+                  error: null,
+                }),
+              })),
+            })),
+          };
+        }
+        return {};
+      }),
+      rpc: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            success: false,
+            error: 'Subscription not found',
+          },
+          error: null,
+        }),
       })),
+      storage: {
+        from: vi.fn(() => ({
+          download: vi.fn().mockResolvedValue({
+            data: {
+              arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+            },
+            error: null,
+          }),
+          upload: vi.fn().mockResolvedValue({ error: null }),
+          remove: vi.fn().mockResolvedValue({ error: null }),
+          createSignedUrl: vi.fn().mockResolvedValue({
+            data: { signedUrl: 'https://example.com/signed' },
+          }),
+        })),
+      },
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
+
+    // Mock successful translation (so we reach the RPC call)
+    vi.mocked(translateImage).mockResolvedValue({
+      imageBuffer: Buffer.from('translated-image'),
+      mimeType: 'image/png',
+    });
 
     const req = new NextRequest('http://localhost:3000/api/translate', {
       method: 'POST',
@@ -115,7 +177,7 @@ describe('POST /api/translate', () => {
 
     expect(response.status).toBe(402);
     const json = await response.json();
-    expect(json.error).toContain('Subscription not found');
+    expect(json.error).toBe('Subscription not found');
   });
 
   it('should return 402 if insufficient credits', async () => {
@@ -125,23 +187,83 @@ describe('POST /api/translate', () => {
     });
 
     const mockSupabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: {
-                user_id: mockUserId,
-                generations_limit: 10,
-                generations_used: 10, // No credits left
-              },
-              error: null,
-            }),
-          })),
-        })),
+      from: vi.fn((table: string) => {
+        if (table === 'generations') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'gen-1',
+                    status: 'pending',
+                    projects: { owner_id: mockUserId },
+                    images: { storage_path: 'path/to/image.png' },
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 'gen-1', status: 'completed' },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          };
+        }
+        if (table === 'images') {
+          return {
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'output-img-1' },
+                  error: null,
+                }),
+              })),
+            })),
+          };
+        }
+        return {};
+      }),
+      rpc: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            success: false,
+            error: 'Insufficient credits',
+            available: 0,
+            required: 1,
+          },
+          error: null,
+        }),
       })),
+      storage: {
+        from: vi.fn(() => ({
+          download: vi.fn().mockResolvedValue({
+            data: {
+              arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+            },
+            error: null,
+          }),
+          upload: vi.fn().mockResolvedValue({ error: null }),
+          remove: vi.fn().mockResolvedValue({ error: null }),
+          createSignedUrl: vi.fn().mockResolvedValue({
+            data: { signedUrl: 'https://example.com/signed' },
+          }),
+        })),
+      },
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as any);
+
+    // Mock successful translation (so we reach the RPC call)
+    vi.mocked(translateImage).mockResolvedValue({
+      imageBuffer: Buffer.from('translated-image'),
+      mimeType: 'image/png',
+    });
 
     const req = new NextRequest('http://localhost:3000/api/translate', {
       method: 'POST',
@@ -151,7 +273,7 @@ describe('POST /api/translate', () => {
 
     expect(response.status).toBe(402);
     const json = await response.json();
-    expect(json.error).toContain('Insufficient credits');
+    expect(json.error).toBe('Insufficient credits');
   });
 
   it('should return 404 if generation not found', async () => {
@@ -162,22 +284,6 @@ describe('POST /api/translate', () => {
 
     const mockSupabase = {
       from: vi.fn((table: string) => {
-        if (table === 'subscriptions') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id: mockUserId,
-                    generations_limit: 10,
-                    generations_used: 0,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          };
-        }
         if (table === 'generations') {
           return {
             select: vi.fn(() => ({
@@ -215,22 +321,6 @@ describe('POST /api/translate', () => {
 
     const mockSupabase = {
       from: vi.fn((table: string) => {
-        if (table === 'subscriptions') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id: mockUserId,
-                    generations_limit: 10,
-                    generations_used: 0,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          };
-        }
         if (table === 'generations') {
           return {
             select: vi.fn(() => ({
@@ -273,22 +363,6 @@ describe('POST /api/translate', () => {
 
     const mockSupabase = {
       from: vi.fn((table: string) => {
-        if (table === 'subscriptions') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id: mockUserId,
-                    generations_limit: 10,
-                    generations_used: 0,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          };
-        }
         if (table === 'generations') {
           return {
             select: vi.fn(() => ({
@@ -331,22 +405,6 @@ describe('POST /api/translate', () => {
 
     const mockSupabase = {
       from: vi.fn((table: string) => {
-        if (table === 'subscriptions') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id: mockUserId,
-                    generations_limit: 10,
-                    generations_used: 0,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          };
-        }
         if (table === 'generations') {
           return {
             select: vi.fn(() => ({
@@ -393,22 +451,6 @@ describe('POST /api/translate', () => {
 
     const mockSupabase = {
       from: vi.fn((table: string) => {
-        if (table === 'subscriptions') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id: mockUserId,
-                    generations_limit: 10,
-                    generations_used: 0,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          };
-        }
         if (table === 'generations') {
           return {
             select: vi.fn(() => ({
@@ -444,6 +486,12 @@ describe('POST /api/translate', () => {
         }
         return {};
       }),
+      rpc: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { success: true, credits_balance: 9 },
+          error: null,
+        }),
+      })),
       storage: {
         from: vi.fn(() => ({
           download: vi.fn().mockResolvedValue({
@@ -496,25 +544,6 @@ describe('POST /api/translate', () => {
 
     const mockSupabase = {
       from: vi.fn((table: string) => {
-        if (table === 'subscriptions') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    user_id: mockUserId,
-                    generations_limit: 10,
-                    generations_used: 5,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-            update: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          };
-        }
         if (table === 'generations') {
           return {
             select: vi.fn(() => ({
@@ -554,6 +583,12 @@ describe('POST /api/translate', () => {
         }
         return {};
       }),
+      rpc: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { success: true, credits_balance: 4 }, // 10 - 5 - 1 = 4
+          error: null,
+        }),
+      })),
       storage: {
         from: vi.fn(() => ({
           download: vi.fn().mockResolvedValue({
