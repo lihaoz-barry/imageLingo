@@ -265,52 +265,118 @@ export default function Home() {
     setIsProcessing(true);
     setResults([]);
 
-    // Demo mode: simulate processing without API calls
+    // Demo mode: simulate processing with realistic UI flow
     if (isDemoMode) {
-      const imageFile = images[0];
-      if (!imageFile) {
+      if (images.length === 0) {
         setIsProcessing(false);
         return;
       }
 
-      // Simulate progress with delays
-      const simulateProgress = async () => {
-        const steps = [
-          { progress: 10, status: 'Uploading image...', delay: 300 },
-          { progress: 25, status: 'Analyzing image content...', delay: 500 },
-          { progress: 45, status: 'Detecting text regions...', delay: 600 },
-          { progress: 65, status: 'Translating text...', delay: 700 },
-          { progress: 85, status: 'Generating localized image...', delay: 500 },
-          { progress: 100, status: 'Translation complete!', delay: 300 },
-        ];
+      // Create initial jobs for all images (same as production)
+      const initialJobs: ProcessingJob[] = images.map(img => ({
+        id: img.id,
+        imageFile: img,
+        status: 'queued' as const,
+        currentVariation: 0,
+        totalVariations: variationsPerImage,
+        progress: 0,
+      }));
 
-        for (const step of steps) {
-          await new Promise(resolve => setTimeout(resolve, step.delay));
-        }
+      setProcessingJobs(initialJobs);
+
+      // Helper to update a specific job's status
+      const updateDemoJob = (jobId: string, updates: Partial<ProcessingJob>) => {
+        setProcessingJobs(prev => prev.map(job =>
+          job.id === jobId ? { ...job, ...updates } : job
+        ));
       };
 
-      await simulateProgress();
+      // Showcase images for demo results (use actual files)
+      const showcaseImages = [
+        '/images/showcase/product-en.jpg',
+        '/images/showcase/menu-en.png',
+        '/images/showcase/menu-es.jpg',
+        '/images/showcase/menu-fr.jpg',
+        '/images/showcase/menu-ja.jpg',
+      ];
 
-      // Create mock result using showcase images
-      const mockResult: ProcessedImageWithVariations = {
-        id: imageFile.id,
-        originalName: imageFile.name,
-        sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Chinese',
-        targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'English',
-        targetLanguageCode: targetLanguage,
-        originalUrl: imageFile.preview,
-        variations: [
-          {
-            id: `${imageFile.id}-var-0`,
-            url: '/images/showcase/product-en.jpg', // Use existing showcase image
-            variationNumber: 1,
-          },
-        ],
-        selectedVariationId: `${imageFile.id}-var-0`,
+      // Process each image job (parallel variations like production)
+      const processDemoJob = async (job: ProcessingJob, jobIndex: number) => {
+        const startTime = Date.now();
+        updateDemoJob(job.id, { status: 'uploading', progress: 5, startTime });
+
+        // Simulate upload delay (1-2 seconds)
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+        updateDemoJob(job.id, { status: 'processing', progress: 15 });
+
+        // Track completed variations for progress updates
+        let completedVariations = 0;
+
+        // Process variations in parallel (like production)
+        const processDemoVariation = async (varIndex: number) => {
+          const variationStartTime = Date.now();
+
+          // Random processing time between 5-8 seconds per variation
+          const processingDelay = 5000 + Math.random() * 3000;
+          await new Promise(resolve => setTimeout(resolve, processingDelay));
+
+          const variationProcessingMs = Date.now() - variationStartTime;
+
+          // Update progress after each variation completes
+          completedVariations++;
+          updateDemoJob(job.id, {
+            currentVariation: completedVariations,
+            progress: 15 + Math.round((completedVariations / variationsPerImage) * 80),
+          });
+
+          return {
+            id: `${job.imageFile.id}-var-${varIndex}`,
+            url: showcaseImages[(jobIndex + varIndex) % showcaseImages.length],
+            variationNumber: varIndex + 1,
+            processingMs: variationProcessingMs,
+          };
+        };
+
+        // Fire all variations in parallel
+        const variationPromises = Array.from(
+          { length: variationsPerImage },
+          (_, varIndex) => processDemoVariation(varIndex)
+        );
+        const variations = await Promise.all(variationPromises);
+
+        const totalProcessingMs = Date.now() - startTime;
+
+        // Create result
+        const newResult: ProcessedImageWithVariations = {
+          id: job.imageFile.id,
+          originalName: job.imageFile.name,
+          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Chinese',
+          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'English',
+          targetLanguageCode: targetLanguage,
+          originalUrl: job.imageFile.preview,
+          variations: variations,
+          selectedVariationId: `${job.imageFile.id}-var-0`,
+          processingMs: variations[0]?.processingMs,
+        };
+
+        // Add result immediately when this job completes
+        setResults(prev => [...prev, newResult]);
+        updateDemoJob(job.id, { status: 'done', progress: 100, processingMs: totalProcessingMs });
+
+        return { success: true };
       };
 
-      setResults([mockResult]);
-      setTokenBalance(prev => Math.max(0, prev - totalCost));
+      // Fire all jobs in parallel (same as production)
+      try {
+        const jobPromises = initialJobs.map((job, index) => processDemoJob(job, index));
+        await Promise.all(jobPromises);
+
+        // Deduct tokens
+        setTokenBalance(prev => Math.max(0, prev - totalCost));
+      } catch (error) {
+        console.error('Demo processing error:', error);
+      }
+
       setIsProcessing(false);
       return;
     }
@@ -381,6 +447,7 @@ export default function Home() {
 
         const processVariation = async (varIndex: number) => {
           const variationNumber = varIndex + 1;
+          const variationStartTime = Date.now(); // Track time for this specific variation
 
           // Step 2: Create generation for this variation
           const genRes = await fetch('/api/generations', {
@@ -419,6 +486,16 @@ export default function Home() {
 
           const translateData = await translateRes.json();
 
+          // Calculate this variation's processing time
+          const variationProcessingMs = Date.now() - variationStartTime;
+
+          // Update this generation with its specific processing time immediately
+          fetch(`/api/generations/${newGeneration.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ processing_ms: variationProcessingMs }),
+          }).catch(err => console.error('Failed to update processing time:', err));
+
           // Update credits from server response
           if (typeof translateData.credits_balance === 'number') {
             setTokenBalance(translateData.credits_balance);
@@ -435,6 +512,7 @@ export default function Home() {
             id: `${job.imageFile.id}-var-${varIndex}`,
             url: translateData.output_url || '',
             variationNumber: variationNumber,
+            processingMs: variationProcessingMs, // Include per-variation time
           };
         };
 
@@ -445,10 +523,11 @@ export default function Home() {
         );
         const variations = await Promise.all(variationPromises);
 
-        // Calculate processing duration
-        const processingMs = Date.now() - startTime;
+        // Calculate total processing duration for the job's progress bar
+        const totalProcessingMs = Date.now() - startTime;
 
         // Create result with all variations for this image
+        // Each variation now has its own processingMs from the database
         const newResult: ProcessedImageWithVariations = {
           id: job.imageFile.id,
           originalName: job.imageFile.name,
@@ -458,23 +537,16 @@ export default function Home() {
           originalUrl: uploadedImage.url || job.imageFile.preview,
           variations: variations,
           selectedVariationId: `${job.imageFile.id}-var-0`,
-          processingMs: processingMs,
+          processingMs: variations[0]?.processingMs, // Use first variation's time as default
         };
 
-        // Update all generations with processing time (fire and forget)
-        generationIds.forEach(genId => {
-          fetch(`/api/generations/${genId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ processing_ms: processingMs }),
-          }).catch(err => console.error('Failed to update processing time:', err));
-        });
+        // Note: Each generation's processing_ms is now updated individually in processVariation
 
         // Add result immediately when this job completes
         setResults(prev => [...prev, newResult]);
-        updateJob(job.id, { status: 'done', progress: 100, processingMs });
+        updateJob(job.id, { status: 'done', progress: 100, processingMs: totalProcessingMs });
 
-        return { success: true, processingMs };
+        return { success: true, processingMs: totalProcessingMs };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         updateJob(job.id, { status: 'error', errorMessage: message, progress: 0 });

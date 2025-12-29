@@ -166,13 +166,12 @@ function useLiveTimer(startTime: number | undefined, isActive: boolean): number 
     return elapsed;
 }
 
-// Helper function to format duration
+// Helper function to format duration (seconds only, no milliseconds)
 function formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    const seconds = ms / 1000;
-    if (seconds < 60) return `${seconds.toFixed(1)}s`;
+    const seconds = Math.round(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
+    const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
 }
 
@@ -230,7 +229,7 @@ function JobItemLarge({ job }: { job: ProcessingJob }) {
                     <div className="flex items-center gap-1.5">
                         {/* Live timer during processing */}
                         {isActive && liveElapsed > 0 && (
-                            <span className="text-yellow-400 text-[10px] bg-yellow-400/10 px-1.5 py-0.5 rounded animate-pulse">
+                            <span className="text-yellow-400 text-[10px] bg-yellow-400/10 px-1.5 py-0.5 rounded">
                                 {formatDuration(liveElapsed)}
                             </span>
                         )}
@@ -286,7 +285,7 @@ function JobItemMedium({ job }: { job: ProcessingJob }) {
                     <div className="flex items-center gap-1">
                         {/* Live timer during processing */}
                         {isActive && liveElapsed > 0 && (
-                            <span className="text-yellow-400 text-[9px] animate-pulse">{formatDuration(liveElapsed)}</span>
+                            <span className="text-yellow-400 text-[9px]">{formatDuration(liveElapsed)}</span>
                         )}
                         {job.status === 'done' && job.processingMs && (
                             <span className="text-cyan-400 text-[9px]">{formatDuration(job.processingMs)}</span>
