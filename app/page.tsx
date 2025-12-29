@@ -369,15 +369,11 @@ export default function Home() {
         const { image: uploadedImage } = await uploadRes.json();
         updateJob(job.id, { status: 'processing', progress: 15 });
 
-        // Generate variations for this image
-        const variations: { id: string; url: string; variationNumber: number }[] = [];
+        // Generate variations for this image in parallel
+        let completedVariations = 0;
 
-        for (let varIndex = 0; varIndex < variationsPerImage; varIndex++) {
+        const processVariation = async (varIndex: number) => {
           const variationNumber = varIndex + 1;
-          updateJob(job.id, {
-            currentVariation: variationNumber,
-            progress: 15 + Math.round((varIndex / variationsPerImage) * 80),
-          });
 
           // Step 2: Create generation for this variation
           const genRes = await fetch('/api/generations', {
@@ -415,23 +411,31 @@ export default function Home() {
 
           const translateData = await translateRes.json();
 
-          // Add this variation to the list
-          variations.push({
-            id: `${job.imageFile.id}-var-${varIndex}`,
-            url: translateData.output_url || '',
-            variationNumber: variationNumber,
-          });
-
           // Update credits from server response
           if (typeof translateData.credits_balance === 'number') {
             setTokenBalance(translateData.credits_balance);
           }
 
-          // Update progress after each variation
+          // Update progress after each variation completes
+          completedVariations++;
           updateJob(job.id, {
-            progress: 15 + Math.round(((varIndex + 1) / variationsPerImage) * 80),
+            currentVariation: completedVariations,
+            progress: 15 + Math.round((completedVariations / variationsPerImage) * 80),
           });
-        }
+
+          return {
+            id: `${job.imageFile.id}-var-${varIndex}`,
+            url: translateData.output_url || '',
+            variationNumber: variationNumber,
+          };
+        };
+
+        // Fire all variations in parallel
+        const variationPromises = Array.from(
+          { length: variationsPerImage },
+          (_, varIndex) => processVariation(varIndex)
+        );
+        const variations = await Promise.all(variationPromises);
 
         // Create result with all variations for this image
         const newResult: ProcessedImageWithVariations = {
