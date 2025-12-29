@@ -11,6 +11,8 @@ export interface ProcessingJob {
     totalVariations: number;
     progress: number; // 0-100
     errorMessage?: string;
+    startTime?: number; // timestamp when processing started
+    processingMs?: number; // duration in milliseconds when completed
 }
 
 interface ProcessingQueueProps {
@@ -135,6 +137,16 @@ function useFakeProgress(status: string): number {
     return fakeProgress;
 }
 
+// Helper function to format duration
+function formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    const seconds = ms / 1000;
+    if (seconds < 60) return `${seconds.toFixed(1)}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}m ${remainingSeconds}s`;
+}
+
 // Helper functions for status
 function getStatusColor(status: string) {
     switch (status) {
@@ -185,6 +197,11 @@ function JobItemLarge({ job }: { job: ProcessingJob }) {
                         {job.imageFile.name}
                     </span>
                     <div className="flex items-center gap-1.5">
+                        {job.status === 'done' && job.processingMs && (
+                            <span className="text-cyan-400 text-[10px] bg-cyan-400/10 px-1.5 py-0.5 rounded">
+                                {formatDuration(job.processingMs)}
+                            </span>
+                        )}
                         {job.status === 'done' && <span className="text-green-400 text-xs">✓</span>}
                         {job.status === 'error' && <span className="text-red-400 text-xs">✕</span>}
                         <span className={`text-xs ${getStatusColor(job.status)}`}>
@@ -227,6 +244,9 @@ function JobItemMedium({ job }: { job: ProcessingJob }) {
                         {job.imageFile.name}
                     </span>
                     <div className="flex items-center gap-1">
+                        {job.status === 'done' && job.processingMs && (
+                            <span className="text-cyan-400 text-[9px]">{formatDuration(job.processingMs)}</span>
+                        )}
                         {job.status === 'done' && <span className="text-green-400 text-[10px]">✓</span>}
                         {job.status === 'error' && <span className="text-red-400 text-[10px]">✕</span>}
                         {job.status === 'processing' && (
@@ -307,8 +327,11 @@ function JobItemMini({ job }: { job: ProcessingJob }) {
 
             {/* Status overlay */}
             {job.status === 'done' && (
-                <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                <div className="absolute inset-0 bg-green-500/20 flex flex-col items-center justify-center">
                     <span className="text-white text-sm font-bold drop-shadow">✓</span>
+                    {job.processingMs && (
+                        <span className="text-white/90 text-[8px] drop-shadow">{formatDuration(job.processingMs)}</span>
+                    )}
                 </div>
             )}
             {job.status === 'error' && (

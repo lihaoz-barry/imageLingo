@@ -135,6 +135,7 @@ export default function Home() {
           source_language: string;
           target_language: string;
           tokens_used: number;
+          processing_ms: number | null;
           created_at: string;
           input_image: { id: string; original_filename: string; url: string };
           output_image: { id: string; original_filename: string; url: string };
@@ -158,6 +159,7 @@ export default function Home() {
           sourceLanguage: LANGUAGE_NAMES[item.source_language] || item.source_language || 'Auto',
           targetLanguage: LANGUAGE_NAMES[item.target_language] || item.target_language || 'Unknown',
           tokensUsed: item.tokens_used || 1,
+          processingMs: item.processing_ms || undefined,
         }));
         setHistory(historyItems);
       }
@@ -348,9 +350,14 @@ export default function Home() {
 
     // Process a single image job independently
     const processImageJob = async (job: ProcessingJob) => {
-      try {
-        updateJob(job.id, { status: 'uploading', progress: 5 });
+      // Track start time for this job
+      const startTime = Date.now();
+      updateJob(job.id, { status: 'uploading', progress: 5, startTime });
 
+      // Track generation IDs to update with processing time later
+      const generationIds: string[] = [];
+
+      try {
         // Step 1: Upload image
         const formData = new FormData();
         formData.append('file', job.imageFile.file);
@@ -394,6 +401,7 @@ export default function Home() {
           }
 
           const { generation: newGeneration } = await genRes.json();
+          generationIds.push(newGeneration.id);
 
           // Step 3: Start translation (deducts 1 token per call)
           const translateRes = await fetch('/api/translate', {
@@ -449,11 +457,23 @@ export default function Home() {
           selectedVariationId: `${job.imageFile.id}-var-0`,
         };
 
+        // Calculate processing duration
+        const processingMs = Date.now() - startTime;
+
+        // Update all generations with processing time (fire and forget)
+        generationIds.forEach(genId => {
+          fetch(`/api/generations/${genId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ processing_ms: processingMs }),
+          }).catch(err => console.error('Failed to update processing time:', err));
+        });
+
         // Add result immediately when this job completes
         setResults(prev => [...prev, newResult]);
-        updateJob(job.id, { status: 'done', progress: 100 });
+        updateJob(job.id, { status: 'done', progress: 100, processingMs });
 
-        return { success: true };
+        return { success: true, processingMs };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         updateJob(job.id, { status: 'error', errorMessage: message, progress: 0 });
