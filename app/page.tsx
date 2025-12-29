@@ -8,10 +8,10 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { UploadZoneWithShowcase } from '@/components/UploadZoneWithShowcase';
 import { ImageThumbnails, type ImageFile } from '@/components/ImageThumbnails';
 import { ProcessButton } from '@/components/ProcessButton';
-import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { VariationSelector } from '@/components/VariationSelector';
 import { CostCalculator } from '@/components/CostCalculator';
 import { ResultsGridWithVariations, type ProcessedImageWithVariations } from '@/components/ResultsGridWithVariations';
+import { ProcessingQueue, type ProcessingJob } from '@/components/ProcessingQueue';
 import { HistoryPanel, type HistoryItem } from '@/components/HistoryPanel';
 import { BillingPanel } from '@/components/BillingPanel';
 import { BetaFeedbackPanel } from '@/components/BetaFeedbackPanel';
@@ -42,9 +42,8 @@ export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [variationsPerImage, setVariationsPerImage] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressStatus, setProgressStatus] = useState('');
   const [results, setResults] = useState<ProcessedImageWithVariations[]>([]);
+  const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
@@ -262,9 +261,7 @@ export default function Home() {
     }
 
     setIsProcessing(true);
-    setProgress(0);
     setResults([]);
-    setProgressStatus('Initializing...');
 
     // Demo mode: simulate processing without API calls
     if (isDemoMode) {
@@ -287,8 +284,6 @@ export default function Home() {
 
         for (const step of steps) {
           await new Promise(resolve => setTimeout(resolve, step.delay));
-          setProgress(step.progress);
-          setProgressStatus(step.status);
         }
       };
 
@@ -318,116 +313,165 @@ export default function Home() {
       return;
     }
 
-    try {
-      // Ensure we have a project
-      const projId = await ensureProject();
-      if (!projId) {
-        throw new Error('Failed to create or fetch project');
-      }
+    // Ensure we have a project first
+    const projId = await ensureProject();
+    if (!projId) {
+      alert('Failed to create or fetch project');
+      setIsProcessing(false);
+      return;
+    }
 
-      // For now, process only the first image (single image flow)
-      // Multi-image support can be added later
-      const imageFile = images[0];
-      if (!imageFile) {
-        throw new Error('No image selected');
-      }
+    if (images.length === 0) {
+      alert('No images selected');
+      setIsProcessing(false);
+      return;
+    }
 
-      setProgress(5);
-      setProgressStatus('Uploading image...');
+    // Create initial jobs for all images
+    const initialJobs: ProcessingJob[] = images.map(img => ({
+      id: img.id,
+      imageFile: img,
+      status: 'queued' as const,
+      currentVariation: 0,
+      totalVariations: variationsPerImage,
+      progress: 0,
+    }));
 
-      // Step 1: Upload image
-      const formData = new FormData();
-      formData.append('file', imageFile.file);
-      formData.append('project_id', projId);
+    setProcessingJobs(initialJobs);
 
-      const uploadRes = await fetch('/api/images', {
-        method: 'POST',
-        body: formData,
-      });
+    // Helper to update a specific job's status
+    const updateJob = (jobId: string, updates: Partial<ProcessingJob>) => {
+      setProcessingJobs(prev => prev.map(job =>
+        job.id === jobId ? { ...job, ...updates } : job
+      ));
+    };
 
-      if (!uploadRes.ok) {
-        const error = await uploadRes.json();
-        throw new Error(error.error || 'Failed to upload image');
-      }
+    // Process a single image job independently
+    const processImageJob = async (job: ProcessingJob) => {
+      try {
+        updateJob(job.id, { status: 'uploading', progress: 5 });
 
-      const { image: uploadedImage } = await uploadRes.json();
-      setProgress(15);
-      setProgressStatus('Creating translation task...');
+        // Step 1: Upload image
+        const formData = new FormData();
+        formData.append('file', job.imageFile.file);
+        formData.append('project_id', projId);
 
-      // Step 2: Create generation
-      const genRes = await fetch('/api/generations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projId,
-          type: 'translation',
-          input_image_id: uploadedImage.id,
-          source_language: sourceLanguage,
-          target_language: targetLanguage,
-        }),
-      });
+        const uploadRes = await fetch('/api/images', {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (!genRes.ok) {
-        const error = await genRes.json();
-        throw new Error(error.error || 'Failed to create generation');
-      }
+        if (!uploadRes.ok) {
+          const error = await uploadRes.json();
+          throw new Error(error.error || 'Failed to upload image');
+        }
 
-      const { generation: newGeneration } = await genRes.json();
-      setProgress(20);
-      setProgressStatus('Starting translation...');
+        const { image: uploadedImage } = await uploadRes.json();
+        updateJob(job.id, { status: 'processing', progress: 15 });
 
-      // Step 3: Start translation
-      const translateRes = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          generation_id: newGeneration.id,
-        }),
-      });
+        // Generate variations for this image in parallel
+        let completedVariations = 0;
 
-      if (!translateRes.ok) {
-        const error = await translateRes.json();
-        throw new Error(error.error || 'Translation failed');
-      }
+        const processVariation = async (varIndex: number) => {
+          const variationNumber = varIndex + 1;
 
-      const translateData = await translateRes.json();
+          // Step 2: Create generation for this variation
+          const genRes = await fetch('/api/generations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              project_id: projId,
+              type: 'translation',
+              input_image_id: uploadedImage.id,
+              source_language: sourceLanguage,
+              target_language: targetLanguage,
+            }),
+          });
 
-      // Translation completed successfully (synchronous for now)
-      const newResult: ProcessedImageWithVariations = {
-        id: imageFile.id,
-        originalName: imageFile.name,
-        sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
-        targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
-        targetLanguageCode: targetLanguage,
-        originalUrl: translateData.input_url || imageFile.preview,
-        variations: [
-          {
-            id: `${imageFile.id}-var-0`,
+          if (!genRes.ok) {
+            const error = await genRes.json();
+            throw new Error(error.error || `Failed to create generation`);
+          }
+
+          const { generation: newGeneration } = await genRes.json();
+
+          // Step 3: Start translation (deducts 1 token per call)
+          const translateRes = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              generation_id: newGeneration.id,
+            }),
+          });
+
+          if (!translateRes.ok) {
+            const error = await translateRes.json();
+            throw new Error(error.error || `Translation failed`);
+          }
+
+          const translateData = await translateRes.json();
+
+          // Update credits from server response
+          if (typeof translateData.credits_balance === 'number') {
+            setTokenBalance(translateData.credits_balance);
+          }
+
+          // Update progress after each variation completes
+          completedVariations++;
+          updateJob(job.id, {
+            currentVariation: completedVariations,
+            progress: 15 + Math.round((completedVariations / variationsPerImage) * 80),
+          });
+
+          return {
+            id: `${job.imageFile.id}-var-${varIndex}`,
             url: translateData.output_url || '',
-            variationNumber: 1,
-          },
-        ],
-        selectedVariationId: `${imageFile.id}-var-0`,
-      };
+            variationNumber: variationNumber,
+          };
+        };
 
-      setResults([newResult]);
+        // Fire all variations in parallel
+        const variationPromises = Array.from(
+          { length: variationsPerImage },
+          (_, varIndex) => processVariation(varIndex)
+        );
+        const variations = await Promise.all(variationPromises);
 
-      // Update credits from server response
-      if (typeof translateData.credits_balance === 'number') {
-        setTokenBalance(translateData.credits_balance);
+        // Create result with all variations for this image
+        const newResult: ProcessedImageWithVariations = {
+          id: job.imageFile.id,
+          originalName: job.imageFile.name,
+          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Auto',
+          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'Spanish',
+          targetLanguageCode: targetLanguage,
+          originalUrl: uploadedImage.url || job.imageFile.preview,
+          variations: variations,
+          selectedVariationId: `${job.imageFile.id}-var-0`,
+        };
+
+        // Add result immediately when this job completes
+        setResults(prev => [...prev, newResult]);
+        updateJob(job.id, { status: 'done', progress: 100 });
+
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        updateJob(job.id, { status: 'error', errorMessage: message, progress: 0 });
+        console.error(`Error processing ${job.imageFile.name}:`, error);
+        return { success: false, error: message };
       }
-      // Note: Realtime subscription in AuthContext will also pick up the update
+    };
 
-      setProgress(100);
-      setProgressStatus('Translation complete!');
+    // Fire all jobs in parallel (don't await each one individually)
+    try {
+      const jobPromises = initialJobs.map(job => processImageJob(job));
+      await Promise.all(jobPromises);
 
-      // Refresh history from server to get the new entry with correct URLs
+      // All jobs completed
+      // Refresh history from server to get the new entries with correct URLs
       fetchHistory();
     } catch (error) {
       console.error('Translation error:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      setProgressStatus(`Error: ${message}`);
-      alert(`Translation failed: ${message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -627,7 +671,7 @@ export default function Home() {
           </div>
 
           {isProcessing && (
-            <ProgressIndicator progress={progress} status={progressStatus} />
+            <ProcessingQueue jobs={processingJobs} isVisible={true} />
           )}
         </div>
 
