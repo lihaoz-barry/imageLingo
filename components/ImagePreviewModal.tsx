@@ -20,6 +20,12 @@ export function ImagePreviewModal({
     const [zoomPosition, setZoomPosition] = useState<{ x: number; y: number } | null>(null);
     const [isZoomEnabled, setIsZoomEnabled] = useState(false);
     const [imageRect, setImageRect] = useState<DOMRect | null>(null);
+    const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+    // Detect mobile device on mount
+    useEffect(() => {
+        setIsMobileDevice('ontouchstart' in window);
+    }, []);
 
     // Handle escape key
     useEffect(() => {
@@ -72,12 +78,13 @@ export function ImagePreviewModal({
         setImageRect(e.currentTarget.getBoundingClientRect());
     };
 
-    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Common function to update zoom position based on coordinates
+    const updateZoomPosition = useCallback((clientX: number, clientY: number) => {
         if (!isZoomEnabled || !imageRect) return;
 
         // Calculate position relative to the image, not the container
-        const x = ((e.clientX - imageRect.left) / imageRect.width) * 100;
-        const y = ((e.clientY - imageRect.top) / imageRect.height) * 100;
+        const x = ((clientX - imageRect.left) / imageRect.width) * 100;
+        const y = ((clientY - imageRect.top) / imageRect.height) * 100;
 
         // Only show lens if cursor is within image bounds
         if (x >= 0 && x <= 100 && y >= 0 && y <= 100) {
@@ -85,9 +92,31 @@ export function ImagePreviewModal({
         } else {
             setZoomPosition(null);
         }
+    }, [isZoomEnabled, imageRect]);
+
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        updateZoomPosition(e.clientX, e.clientY);
     };
 
     const handleMouseLeave = () => {
+        setZoomPosition(null);
+    };
+
+    // Touch event handlers for mobile
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (!isZoomEnabled || e.touches.length === 0) return;
+        const touch = e.touches[0];
+        updateZoomPosition(touch.clientX, touch.clientY);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+        if (!isZoomEnabled || e.touches.length === 0) return;
+        e.preventDefault(); // Prevent page scrolling
+        const touch = e.touches[0];
+        updateZoomPosition(touch.clientX, touch.clientY);
+    };
+
+    const handleTouchEnd = () => {
         setZoomPosition(null);
     };
 
@@ -149,6 +178,9 @@ export function ImagePreviewModal({
                     className={`relative flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden ${isZoomEnabled ? 'cursor-crosshair' : ''}`}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
                 >
                     <img
                         src={imageUrl}
@@ -158,10 +190,25 @@ export function ImagePreviewModal({
                     />
 
                     {/* Zoom Lens */}
+                    {/* Touch indicator for mobile */}
+                    {isZoomEnabled && zoomPosition && isMobileDevice && (
+                        <div
+                            className="absolute w-4 h-4 rounded-full bg-[#8b5cf6] border-2 border-white pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                            style={{
+                                left: `${zoomPosition.x}%`,
+                                top: `${zoomPosition.y}%`,
+                                zIndex: 70
+                            }}
+                        />
+                    )}
                     {/* Zoom Pane (Static) */}
                     {isZoomEnabled && zoomPosition && (
                         <div
-                            className="absolute top-4 left-4 pointer-events-none w-80 h-80 rounded-2xl border-2 border-white/20 shadow-2xl bg-no-repeat overflow-hidden hidden md:block bg-black/50 backdrop-blur-sm"
+                            className={`absolute pointer-events-none rounded-2xl border-2 border-white/20 shadow-2xl bg-no-repeat overflow-hidden bg-black/50 backdrop-blur-sm ${
+                                isMobileDevice 
+                                    ? 'bottom-4 left-1/2 -translate-x-1/2 w-64 h-64' 
+                                    : 'top-4 left-4 w-80 h-80'
+                            }`}
                             style={{
                                 backgroundImage: `url(${imageUrl})`,
                                 backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,

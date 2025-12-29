@@ -61,12 +61,12 @@ export function Header({
               ) : (
                 <User className="w-4 h-4" />
               )}
-              <span className="max-w-[80px] sm:max-w-[120px] truncate hidden sm:inline">{userEmail || 'Account'}</span>
+              <span className="max-w-[100px] sm:max-w-[120px] truncate">{userEmail || 'Account'}</span>
             </>
           ) : (
             <>
               <LogIn className="w-4 h-4" />
-              <span className="hidden sm:inline">Login</span>
+              <span>Login</span>
             </>
           )}
         </button>
