@@ -114,6 +114,7 @@ export function useGenerationRealtime({
     useEffect(() => {
         // Skip in demo mode or if no user
         if (isDemoMode || !userId || generationIds.length === 0) {
+            console.log('[Realtime] Skipping subscription:', { isDemoMode, userId: !!userId, generationIdsCount: generationIds.length });
             return;
         }
 
@@ -123,8 +124,9 @@ export function useGenerationRealtime({
             return;
         }
 
-        // Create a unique channel name
-        const channelName = `generations-${userId}-${Date.now()}`;
+        // Create a unique channel name based on generation IDs
+        const channelName = `generations-${userId}-${generationIds.join('-').slice(0, 50)}-${Date.now()}`;
+        console.log('[Realtime] Creating subscription for', generationIds.length, 'generations');
 
         // Subscribe to updates on the generations table for this user
         const channel = supabase
@@ -137,9 +139,13 @@ export function useGenerationRealtime({
                     table: 'generations',
                     filter: `user_id=eq.${userId}`,
                 },
-                handleUpdate
+                (payload) => {
+                    console.log('[Realtime] Received update:', payload.new?.id, payload.new?.status);
+                    handleUpdate(payload as unknown as { new: GenerationUpdate });
+                }
             )
             .subscribe((status) => {
+                console.log('[Realtime] Subscription status:', status);
                 if (status === 'SUBSCRIBED') {
                     console.log('Realtime subscription active for generations');
                 } else if (status === 'CHANNEL_ERROR') {
@@ -150,12 +156,14 @@ export function useGenerationRealtime({
         channelRef.current = channel;
 
         return () => {
+            console.log('[Realtime] Cleaning up subscription');
             if (channelRef.current) {
                 supabase.removeChannel(channelRef.current);
                 channelRef.current = null;
             }
         };
-    }, [userId, generationIds.length, handleUpdate]);
+        // Use a stable key derived from generationIds to trigger re-subscription
+    }, [userId, generationIds.join(','), handleUpdate]);
 }
 
 /**

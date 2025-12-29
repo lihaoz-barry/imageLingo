@@ -30,6 +30,7 @@ const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 import { ShowcaseModal } from '@/components/ShowcaseModal';
 import { useGenerationRealtime, fetchGenerationResult } from '@/hooks/useGenerationRealtime';
+import { ProcessingQueue, type ProcessingJob } from '@/components/ProcessingQueue';
 
 export default function Home() {
   const { user, tokenBalance, setTokenBalance } = useAuth();
@@ -59,6 +60,7 @@ export default function Home() {
   const [pendingGenerationIds, setPendingGenerationIds] = useState<string[]>([]);
   const [totalOperations, setTotalOperations] = useState(0);
   const [completedOperations, setCompletedOperations] = useState(0);
+  const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([]);
 
   // Map to track generation metadata: generationId -> { imageFileId, variationIndex, uploadedImageUrl, processingMs }
   const generationMetaRef = useRef<Map<string, {
@@ -258,6 +260,18 @@ export default function Home() {
       return newCount;
     });
 
+    // Update processing jobs state
+    setProcessingJobs(prev => prev.map(job =>
+      job.id === meta.imageFileId
+        ? {
+          ...job,
+          status: 'done' as const,
+          progress: 100,
+          currentVariation: job.totalVariations // Assuming simple variation mapping for now
+        }
+        : job
+    ));
+
     // Update results - group variations by image
     setResults(prevResults => {
       const existingResult = prevResults.find(r => r.id === meta.imageFileId);
@@ -306,6 +320,17 @@ export default function Home() {
   // Handle generation failure from realtime subscription
   const handleGenerationFailed = useCallback((generation: { id: string; error_message: string | null }) => {
     console.error('Generation failed:', generation.id, generation.error_message);
+
+    // Update processing job status
+    const meta = generationMetaRef.current.get(generation.id);
+    if (meta) {
+      setProcessingJobs(prev => prev.map(job =>
+        job.id === meta.imageFileId
+          ? { ...job, status: 'error' as const, errorMessage: generation.error_message || 'Processing failed' }
+          : job
+      ));
+    }
+
     setPendingGenerationIds(prev => prev.filter(id => id !== generation.id));
     setCompletedOperations(prev => {
       const newCount = prev + 1;
@@ -456,6 +481,17 @@ export default function Home() {
       setCompletedOperations(0);
       generationMetaRef.current.clear();
 
+      // Initialize processing jobs state
+      const initialJobs: ProcessingJob[] = images.map(img => ({
+        id: img.id,
+        imageFile: img,
+        status: 'uploading' as const,
+        currentVariation: 0,
+        totalVariations: variationsPerImage,
+        progress: 5,
+      }));
+      setProcessingJobs(initialJobs);
+
       setProgressStatus('Uploading images...');
 
       // Step 1: Upload all images in parallel
@@ -488,6 +524,12 @@ export default function Home() {
       });
 
       const uploadedImages = await Promise.all(uploadPromises);
+
+      // Update jobs to reflect upload completion
+      setProcessingJobs(prev => prev.map(job =>
+        ({ ...job, status: 'processing' as const, progress: 15 })
+      ));
+
       setProgressStatus('Creating translation tasks...');
 
       // Step 2: Create all generations in parallel
@@ -571,6 +613,30 @@ export default function Home() {
       // Don't await - let them run in parallel
       // The isProcessing state will be set to false when all complete via the useEffect
       Promise.all(translatePromises).catch(console.error);
+
+      // --- INITIAL SYNC ---
+      // After firing requests, check status once immediately to catch rapid completions
+      // that might have finished before WebSocket was fully subscribed.
+      setTimeout(async () => {
+        console.log('[Initial Sync] Performing one-time status check...');
+        const syncPromises = generationIds.map(async (id) => {
+          try {
+            const res = await fetch(`/api/generations/${id}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.generation.status === 'completed') {
+                console.log('[Initial Sync] Detected completion:', id);
+                handleGenerationComplete(data.generation);
+              } else if (data.generation.status === 'failed') {
+                handleGenerationFailed(data.generation);
+              }
+            }
+          } catch (err) {
+            console.error('[Initial Sync] Error checking status for', id, err);
+          }
+        });
+        await Promise.all(syncPromises);
+      }, 500); // 500ms delay to allow server to at least start processing
 
       // Note: We don't set isProcessing to false here
       // The useEffect hook watching pendingGenerationIds will handle that
@@ -778,7 +844,10 @@ export default function Home() {
           </div>
 
           {isProcessing && (
-            <ProgressIndicator progress={progress} status={progressStatus} />
+            <div className="mt-8 space-y-6">
+              <ProcessingQueue jobs={processingJobs} isVisible={true} />
+              <ProgressIndicator progress={progress} status={progressStatus} />
+            </div>
           )}
         </div>
 
