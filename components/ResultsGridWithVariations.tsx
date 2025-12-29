@@ -6,6 +6,7 @@ export interface ImageVariation {
   id: string;
   url: string;
   variationNumber: number;
+  processingMs?: number; // Individual processing time for this variation
 }
 
 export interface ProcessedImageWithVariations {
@@ -17,6 +18,16 @@ export interface ProcessedImageWithVariations {
   originalUrl: string;
   variations: ImageVariation[];
   selectedVariationId?: string;
+  processingMs?: number; // Processing duration in milliseconds
+}
+
+// Helper function to format duration (seconds only, no milliseconds)
+function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
 }
 
 interface ResultsGridWithVariationsProps {
@@ -102,6 +113,12 @@ export function ResultsGridWithVariations({
                     <div className="absolute top-2 left-2 px-2 py-1 rounded-lg backdrop-blur-md bg-black/50 text-xs text-white">
                       Variation {selectedVariation.variationNumber}
                     </div>
+                    {/* Processing duration badge - show selected variation's time */}
+                    {selectedVariation.processingMs && (
+                      <div className="absolute top-2 right-2 px-2 py-1 rounded-lg backdrop-blur-md bg-cyan-500/70 text-xs text-white font-medium">
+                        {formatDuration(selectedVariation.processingMs)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Variation Thumbnails */}
