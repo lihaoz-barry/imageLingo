@@ -1,0 +1,111 @@
+# Cursor AI Code Assistant Rules
+
+These rules apply when using Cursor IDE for imageLingo development.
+
+---
+
+## 🎯 Core Rules
+
+### Rule 1: Always Run Quality Checks
+Before accepting Cursor's code suggestions, you MUST:
+1. Run `npm run lint` - must have 0 errors
+2. Run `npx tsc --noEmit` - must have 0 errors
+3. Run `npm test` - all tests must pass
+
+If any check fails, reject the suggestion and ask Cursor to fix it.
+
+### Rule 2: Type Safety Over Convenience
+- ✅ Accept: Suggestions with proper TypeScript types
+- ❌ Reject: Suggestions using `any` type
+- ✅ Ask: Cursor to add type definitions if missing
+
+### Rule 3: Tests Are Mandatory
+- ✅ Accept: Code with unit tests
+- ❌ Reject: Code without tests
+- Ask Cursor to write tests before implementation
+
+### Rule 4: Follow Commit Message Format
+Cursor must suggest commits with format:
+```
+type(scope): description
+
+- Detail 1
+- Detail 2
+
+Co-Authored-By: Cursor <cursor@anysphere.com>
+```
+
+---
+
+## 📋 Best Practices with Cursor
+
+### When Using Composer
+1. Describe the feature clearly
+2. Reference existing files as examples
+3. Ask for tests alongside implementation
+4. Request error handling explicitly
+5. Verify quality checks before accept
+
+### When Using Chat
+1. Ask for explanations of complex code
+2. Request test writing strategies
+3. Discuss architecture decisions
+4. Ask for best practices
+5. Request security reviews
+
+### Custom Instructions
+Add to Cursor settings:
+```
+I'm working on imageLingo, a Next.js project with TypeScript.
+- Always use TypeScript with proper types (no any)
+- Write tests with Vitest for all code
+- Follow the guidelines in .agent.md
+- Run quality checks: npm run lint && npx tsc --noEmit && npm test
+- Use Supabase for database, Next.js Auth for authentication
+- Return proper HTTP status codes from API routes
+- Never hardcode secrets or credentials
+```
+
+---
+
+## ✅ Code Review with Cursor
+
+Use Cursor to:
+- ✅ Explain existing code
+- ✅ Suggest refactorings
+- ✅ Review code quality
+- ✅ Fix linting errors
+- ✅ Write tests
+
+Never:
+- ❌ Push code without manual quality checks
+- ❌ Accept `any` types
+- ❌ Skip test writing
+- ❌ Ignore ESLint/TypeScript errors
+
+---
+
+## 🔧 Useful Cursor Commands
+
+```
+@workspace - Reference entire project context
+@codebase - Suggest based on codebase patterns
+/chat - Open chat mode
+/edit - Edit files
+/review - Code review
+```
+
+---
+
+## 📚 Reference Files for Cursor
+
+Point Cursor to these files for context:
+- `.agent.md` - General guidelines
+- `docs/AGENT_GUIDELINES.md` - Comprehensive guide
+- `.claude-code-guidelines.md` - Testing workflow
+- `lib/auth-middleware.ts` - Auth patterns
+- `__tests__/api/` - Test examples
+
+---
+
+**Last Updated: 2025-12-29**
