@@ -64,13 +64,11 @@ function useFakeProgress(status: string): number {
         }
 
         if (status === 'done') {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFakeProgress(100);
             return;
         }
 
         if (status === 'error') {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFakeProgress(0);
             return;
         }
