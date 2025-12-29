@@ -6,6 +6,44 @@ import { PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName } from '@/lib/prompts'
 
 const CREDITS_PER_TRANSLATION = 1;
 
+// Retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 2,                                    // 0-indexed: attempts 0, 1, 2 (total 3 attempts)
+  transientDelay: 2000,                             // 2 seconds base delay
+  backoffMultiplier: 2,                             // 2s, then 4s
+  retryableErrors: ['RATE_LIMIT', 'TIMEOUT', 'DEADLINE_EXCEEDED'],
+};
+
+// Helper: Log error attempt to database
+async function logErrorAttempt(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+  generationId: string,
+  userId: string,
+  errorCode: string,
+  errorMessage: string,
+  attemptNumber: number
+) {
+  try {
+    await supabase
+      .from('error_logs')
+      .insert({
+        generation_id: generationId,
+        user_id: userId,
+        error_code: errorCode,
+        error_message: errorMessage,
+        attempt_number: attemptNumber,
+      });
+  } catch (logError) {
+    console.error('Failed to log error attempt:', logError);
+    // Don't throw - continue processing even if logging fails
+  }
+}
+
+// Helper: Sleep for specified milliseconds
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * POST /api/translate
  * Process an image translation using Gemini API
@@ -138,8 +176,71 @@ export async function POST(req: NextRequest) {
       getLanguageName(generation.target_language || 'en')
     );
 
-    // Call Gemini API
-    const result = await translateImage(imageBuffer, mimeType, prompt);
+    // Translate with retry logic
+    let result;
+    let lastError: GeminiError | null = null;
+
+    for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+      try {
+        // Call Gemini API
+        result = await translateImage(imageBuffer, mimeType, prompt);
+
+        // Success - break out of retry loop
+        if (attempt > 0) {
+          // Update generation to track retries
+          await supabase
+            .from('generations')
+            .update({
+              retry_count: attempt,
+              last_retry_at: new Date().toISOString(),
+            })
+            .eq('id', generationId);
+        }
+        break;
+
+      } catch (error: unknown) {
+        lastError = error as GeminiError;
+        const isGeminiError = error instanceof GeminiError;
+        const errorCode = isGeminiError ? (error as GeminiError).code : 'API_ERROR';
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        // Log this error attempt
+        await logErrorAttempt(supabase!, generationId, userId, errorCode, errorMessage, attempt + 1);
+
+        // Check if we should retry
+        const isTransientError = RETRY_CONFIG.retryableErrors.includes(errorCode);
+        const canRetry = isTransientError && attempt < RETRY_CONFIG.maxRetries;
+
+        if (!canRetry) {
+          // No more retries - throw to outer catch
+          throw error;
+        }
+
+        // Calculate backoff delay
+        const delayMs = RETRY_CONFIG.transientDelay *
+                       Math.pow(RETRY_CONFIG.backoffMultiplier, attempt);
+
+        // Update generation status to show retrying
+        await supabase
+          .from('generations')
+          .update({
+            status: 'retrying',
+            error_code: errorCode,
+            error_message: errorMessage,
+            first_error_at: attempt === 0 ? new Date().toISOString() : undefined,
+            last_retry_at: new Date().toISOString(),
+          })
+          .eq('id', generationId);
+
+        // Wait before next retry
+        await sleep(delayMs);
+      }
+    }
+
+    // If we got here without result, throw the last error
+    if (!result) {
+      throw lastError || new Error('Translation failed after retries');
+    }
 
     // Generate storage path for output image
     const fileExt = result.mimeType.split('/')[1] || 'png';
@@ -229,19 +330,21 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     console.error('Translation error:', error);
 
+    // Determine error details
+    const isGeminiError = error instanceof GeminiError;
+    const errorCode = isGeminiError ? (error as GeminiError).code : 'API_ERROR';
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const isRetryable = RETRY_CONFIG.retryableErrors.includes(errorCode);
+
     // Update generation with failure status
     if (generationId && supabase) {
-      const errorMessage = error instanceof GeminiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : 'Unknown error occurred';
-
       await supabase
         .from('generations')
         .update({
           status: 'failed',
           error_message: errorMessage,
+          error_code: errorCode,
+          is_retryable: isRetryable,
           processing_ms: Date.now() - startTime,
         })
         .eq('id', generationId);
@@ -249,23 +352,20 @@ export async function POST(req: NextRequest) {
 
     // Determine appropriate status code
     let statusCode = 500;
-    let retryable = false;
 
-    if (error instanceof GeminiError) {
-      if (error.code === 'RATE_LIMIT') {
+    if (isGeminiError) {
+      if (errorCode === 'RATE_LIMIT') {
         statusCode = 429;
-        retryable = true;
-      } else if (error.code === 'CONFIG_ERROR') {
+      } else if (errorCode === 'CONFIG_ERROR') {
         statusCode = 500;
       }
     }
 
-    const message = error instanceof Error ? error.message : 'Internal server error';
-
     return Response.json(
       {
-        error: message,
-        retryable,
+        error: errorMessage,
+        error_code: errorCode,
+        retryable: isRetryable,
       },
       { status: statusCode }
     );

@@ -246,6 +246,13 @@ export default function Home() {
     });
   };
 
+  // Helper to update a specific job's status (extracted to component level)
+  const updateJob = (jobId: string, updates: Partial<ProcessingJob>) => {
+    setProcessingJobs(prev => prev.map(job =>
+      job.id === jobId ? { ...job, ...updates } : job
+    ));
+  };
+
   const handleProcess = async () => {
     // Check if user is logged in (in demo mode, user is always "logged in")
     if (!user && !isDemoMode) {
@@ -339,13 +346,6 @@ export default function Home() {
 
     setProcessingJobs(initialJobs);
 
-    // Helper to update a specific job's status
-    const updateJob = (jobId: string, updates: Partial<ProcessingJob>) => {
-      setProcessingJobs(prev => prev.map(job =>
-        job.id === jobId ? { ...job, ...updates } : job
-      ));
-    };
-
     // Process a single image job independently
     const processImageJob = async (job: ProcessingJob) => {
       try {
@@ -371,73 +371,115 @@ export default function Home() {
 
         // Generate variations for this image in parallel
         let completedVariations = 0;
+        const failedVariations: ProcessingJob['failedVariations'] = [];
 
         const processVariation = async (varIndex: number) => {
           const variationNumber = varIndex + 1;
 
-          // Step 2: Create generation for this variation
-          const genRes = await fetch('/api/generations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              project_id: projId,
-              type: 'translation',
-              input_image_id: uploadedImage.id,
-              source_language: sourceLanguage,
-              target_language: targetLanguage,
-            }),
-          });
+          try {
+            // Step 2: Create generation for this variation
+            const genRes = await fetch('/api/generations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: projId,
+                type: 'translation',
+                input_image_id: uploadedImage.id,
+                source_language: sourceLanguage,
+                target_language: targetLanguage,
+              }),
+            });
 
-          if (!genRes.ok) {
-            const error = await genRes.json();
-            throw new Error(error.error || `Failed to create generation`);
+            if (!genRes.ok) {
+              const error = await genRes.json();
+              throw new Error(error.error || `Failed to create generation`);
+            }
+
+            const { generation: newGeneration } = await genRes.json();
+
+            // Step 3: Start translation (deducts 1 token per call)
+            const translateRes = await fetch('/api/translate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                generation_id: newGeneration.id,
+              }),
+            });
+
+            if (!translateRes.ok) {
+              const errorData = await translateRes.json();
+              // Log failed variation with error details from API
+              failedVariations.push({
+                variationNumber,
+                errorCode: errorData.error_code || 'API_ERROR',
+                errorMessage: errorData.error || errorData.message || 'Translation failed',
+                isRetryable: errorData.retryable ?? false,
+                attemptNumber: 1, // First attempt
+              });
+              console.error(`Variation ${variationNumber} failed:`, errorData);
+              return null; // Return null for failed variation
+            }
+
+            const translateData = await translateRes.json();
+
+            // Update credits from server response
+            if (typeof translateData.credits_balance === 'number') {
+              setTokenBalance(translateData.credits_balance);
+            }
+
+            // Update progress after each variation completes
+            completedVariations++;
+            updateJob(job.id, {
+              currentVariation: completedVariations,
+              progress: 15 + Math.round((completedVariations / variationsPerImage) * 80),
+            });
+
+            return {
+              id: `${job.imageFile.id}-var-${varIndex}`,
+              url: translateData.output_url || '',
+              variationNumber: variationNumber,
+            };
+          } catch (error) {
+            // Handle errors in variation processing without stopping other variations
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            failedVariations.push({
+              variationNumber,
+              errorCode: 'API_ERROR',
+              errorMessage: message,
+              isRetryable: false,
+              attemptNumber: 1,
+            });
+            console.error(`Error processing variation ${variationNumber}:`, error);
+            return null; // Return null for failed variation
           }
-
-          const { generation: newGeneration } = await genRes.json();
-
-          // Step 3: Start translation (deducts 1 token per call)
-          const translateRes = await fetch('/api/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              generation_id: newGeneration.id,
-            }),
-          });
-
-          if (!translateRes.ok) {
-            const error = await translateRes.json();
-            throw new Error(error.error || `Translation failed`);
-          }
-
-          const translateData = await translateRes.json();
-
-          // Update credits from server response
-          if (typeof translateData.credits_balance === 'number') {
-            setTokenBalance(translateData.credits_balance);
-          }
-
-          // Update progress after each variation completes
-          completedVariations++;
-          updateJob(job.id, {
-            currentVariation: completedVariations,
-            progress: 15 + Math.round((completedVariations / variationsPerImage) * 80),
-          });
-
-          return {
-            id: `${job.imageFile.id}-var-${varIndex}`,
-            url: translateData.output_url || '',
-            variationNumber: variationNumber,
-          };
         };
 
-        // Fire all variations in parallel
+        // Fire all variations in parallel - let failures continue
         const variationPromises = Array.from(
           { length: variationsPerImage },
           (_, varIndex) => processVariation(varIndex)
         );
-        const variations = await Promise.all(variationPromises);
+        const variationResults = await Promise.all(variationPromises);
 
-        // Create result with all variations for this image
+        // Filter out null values (failed variations)
+        const variations = variationResults.filter((v) => v !== null);
+
+        // Check if all variations failed
+        const allVariationsFailed = variations.length === 0;
+
+        if (allVariationsFailed) {
+          // All variations failed - mark job as error with failed variations tracking
+          updateJob(job.id, {
+            status: 'error',
+            errorMessage: `All ${variationsPerImage} variation(s) failed`,
+            failedVariations,
+            progress: 0,
+          });
+          return { success: false, error: 'All variations failed', failedVariations };
+        }
+
+        // At least some variations succeeded
+        // Create result with available variations for this image
         const newResult: ProcessedImageWithVariations = {
           id: job.imageFile.id,
           originalName: job.imageFile.name,
@@ -451,9 +493,26 @@ export default function Home() {
 
         // Add result immediately when this job completes
         setResults(prev => [...prev, newResult]);
-        updateJob(job.id, { status: 'done', progress: 100 });
 
-        return { success: true };
+        // Update job status based on whether any variations failed
+        if (failedVariations.length > 0) {
+          // Some variations failed, some succeeded - mark as done but track failures
+          updateJob(job.id, {
+            status: 'done',
+            progress: 100,
+            failedVariations,
+            errorMessage: `${failedVariations.length}/${variationsPerImage} variation(s) failed`,
+          });
+        } else {
+          // All variations succeeded
+          updateJob(job.id, { status: 'done', progress: 100 });
+        }
+
+        return {
+          success: true,
+          variationsCount: variations.length,
+          failedVariations: failedVariations.length > 0 ? failedVariations : undefined,
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         updateJob(job.id, { status: 'error', errorMessage: message, progress: 0 });
@@ -483,6 +542,146 @@ export default function Home() {
         ? { ...result, selectedVariationId: variationId }
         : result
     ));
+  };
+
+  const handleRetryVariation = async (jobId: string, variationNumber: number) => {
+    // Find the job with failed variations
+    const job = processingJobs.find(j => j.id === jobId);
+    if (!job || !job.failedVariations) {
+      console.error('Job or failed variations not found');
+      return;
+    }
+
+    const failedVar = job.failedVariations.find(v => v.variationNumber === variationNumber);
+    if (!failedVar) {
+      console.error('Failed variation not found');
+      return;
+    }
+
+    try {
+      // Update job status to show retrying
+      updateJob(jobId, {
+        status: 'processing',
+        errorMessage: undefined,
+        failedVariations: job.failedVariations.map(v =>
+          v.variationNumber === variationNumber
+            ? { ...v, errorMessage: 'Retrying...' }
+            : v
+        ),
+      });
+
+      // Find the corresponding result and generation ID
+      // We need to get the generation_id - for now, we'll need to create a new generation
+      const result = results.find(r => r.id === jobId);
+      if (!result) {
+        console.error('Result not found for job');
+        return;
+      }
+
+      // Create a new generation for this variation retry
+      const genRes = await fetch('/api/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          type: 'translation',
+          input_image_id: result.id, // This might need to be adjusted based on actual data structure
+          source_language: sourceLanguage,
+          target_language: targetLanguage,
+        }),
+      });
+
+      if (!genRes.ok) {
+        const error = await genRes.json();
+        throw new Error(error.error || 'Failed to create generation for retry');
+      }
+
+      const { generation: newGeneration } = await genRes.json();
+
+      // Call translate API to retry this specific variation
+      const translateRes = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generation_id: newGeneration.id,
+        }),
+      });
+
+      if (!translateRes.ok) {
+        const errorData = await translateRes.json();
+        // Update failed variation with new error
+        updateJob(jobId, {
+          failedVariations: job.failedVariations.map(v =>
+            v.variationNumber === variationNumber
+              ? {
+                  ...v,
+                  errorCode: errorData.error_code || 'API_ERROR',
+                  errorMessage: errorData.error || 'Retry failed',
+                  isRetryable: errorData.retryable ?? false,
+                  attemptNumber: v.attemptNumber + 1,
+                }
+              : v
+          ),
+          status: 'error',
+        });
+        return;
+      }
+
+      const translateData = await translateRes.json();
+
+      // Update credits from server response
+      if (typeof translateData.credits_balance === 'number') {
+        setTokenBalance(translateData.credits_balance);
+      }
+
+      // Add the new variation to results
+      const newVariation = {
+        id: `${jobId}-var-${variationNumber - 1}`,
+        url: translateData.output_url || '',
+        variationNumber: variationNumber,
+      };
+
+      // Update results with the new variation
+      setResults(prev =>
+        prev.map(r => {
+          if (r.id === jobId) {
+            // Check if variation already exists and update, or add new
+            const existingVarIndex = r.variations.findIndex(v => v.variationNumber === variationNumber);
+            if (existingVarIndex >= 0) {
+              const updatedVars = [...r.variations];
+              updatedVars[existingVarIndex] = newVariation;
+              return { ...r, variations: updatedVars };
+            } else {
+              return { ...r, variations: [...r.variations, newVariation] };
+            }
+          }
+          return r;
+        })
+      );
+
+      // Remove this variation from failed list
+      const remainingFailed = job.failedVariations.filter(v => v.variationNumber !== variationNumber);
+      updateJob(jobId, {
+        failedVariations: remainingFailed.length > 0 ? remainingFailed : undefined,
+        status: remainingFailed.length > 0 ? 'done' : 'done',
+        errorMessage: remainingFailed.length > 0
+          ? `${remainingFailed.length} variation(s) still failed`
+          : undefined,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Error retrying variation ${variationNumber}:`, error);
+
+      // Update failed variation with error
+      updateJob(jobId, {
+        failedVariations: job.failedVariations.map(v =>
+          v.variationNumber === variationNumber
+            ? { ...v, errorMessage: message, attemptNumber: v.attemptNumber + 1 }
+            : v
+        ),
+        status: 'error',
+      });
+    }
   };
 
   const handleDownload = async (imageId: string, variationId: string) => {
@@ -671,7 +870,7 @@ export default function Home() {
           </div>
 
           {isProcessing && (
-            <ProcessingQueue jobs={processingJobs} isVisible={true} />
+            <ProcessingQueue jobs={processingJobs} isVisible={true} onRetryVariation={handleRetryVariation} />
           )}
         </div>
 
