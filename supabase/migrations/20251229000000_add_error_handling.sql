@@ -2,14 +2,12 @@
 -- Adds error tracking to generations table and creates audit log for errors
 
 -- 1. Add error tracking columns to generations table
-ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS (
-  error_code          TEXT,                         -- RATE_LIMIT, TIMEOUT, CONFIG_ERROR, NO_IMAGE, API_ERROR
-  error_message       TEXT,                         -- Full error message from Gemini API
-  is_retryable        BOOLEAN DEFAULT FALSE,        -- Can user manually retry this generation?
-  retry_count         INTEGER DEFAULT 0,            -- Number of retry attempts made (0-2)
-  first_error_at      TIMESTAMP WITH TIME ZONE,     -- When first error occurred
-  last_retry_at       TIMESTAMP WITH TIME ZONE      -- When last retry was attempted
-);
+ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS error_code TEXT;
+ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS error_message TEXT;
+ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS is_retryable BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
+ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS first_error_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMP WITH TIME ZONE;
 
 -- 2. Create error_logs table for detailed audit trail
 CREATE TABLE IF NOT EXISTS public.error_logs (
