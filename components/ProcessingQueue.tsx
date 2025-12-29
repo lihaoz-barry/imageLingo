@@ -137,6 +137,35 @@ function useFakeProgress(status: string): number {
     return fakeProgress;
 }
 
+// Custom hook for live elapsed time counter
+function useLiveTimer(startTime: number | undefined, isActive: boolean): number {
+    const [elapsed, setElapsed] = useState(0);
+
+    useEffect(() => {
+        if (!isActive || !startTime) {
+            const timer = setTimeout(() => setElapsed(0), 0);
+            return () => clearTimeout(timer);
+        }
+
+        // Update immediately via timeout to avoid sync setState
+        const immediateTimer = setTimeout(() => {
+            setElapsed(Date.now() - startTime);
+        }, 0);
+
+        // Then update every second
+        const intervalTimer = setInterval(() => {
+            setElapsed(Date.now() - startTime);
+        }, 1000);
+
+        return () => {
+            clearTimeout(immediateTimer);
+            clearInterval(intervalTimer);
+        };
+    }, [startTime, isActive]);
+
+    return elapsed;
+}
+
 // Helper function to format duration
 function formatDuration(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
@@ -167,6 +196,8 @@ function getProgressBarColor(status: string) {
 // Large layout: Full details with thumbnail, name, status, progress bar
 function JobItemLarge({ job }: { job: ProcessingJob }) {
     const displayProgress = useFakeProgress(job.status);
+    const isActive = job.status === 'uploading' || job.status === 'processing';
+    const liveElapsed = useLiveTimer(job.startTime, isActive);
 
     const getStatusText = () => {
         switch (job.status) {
@@ -197,6 +228,13 @@ function JobItemLarge({ job }: { job: ProcessingJob }) {
                         {job.imageFile.name}
                     </span>
                     <div className="flex items-center gap-1.5">
+                        {/* Live timer during processing */}
+                        {isActive && liveElapsed > 0 && (
+                            <span className="text-yellow-400 text-[10px] bg-yellow-400/10 px-1.5 py-0.5 rounded animate-pulse">
+                                {formatDuration(liveElapsed)}
+                            </span>
+                        )}
+                        {/* Final duration when done */}
                         {job.status === 'done' && job.processingMs && (
                             <span className="text-cyan-400 text-[10px] bg-cyan-400/10 px-1.5 py-0.5 rounded">
                                 {formatDuration(job.processingMs)}
@@ -225,6 +263,8 @@ function JobItemLarge({ job }: { job: ProcessingJob }) {
 // Medium layout: Smaller thumbnail, condensed info
 function JobItemMedium({ job }: { job: ProcessingJob }) {
     const displayProgress = useFakeProgress(job.status);
+    const isActive = job.status === 'uploading' || job.status === 'processing';
+    const liveElapsed = useLiveTimer(job.startTime, isActive);
 
     return (
         <div className="flex items-center gap-2 p-1 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
@@ -244,6 +284,10 @@ function JobItemMedium({ job }: { job: ProcessingJob }) {
                         {job.imageFile.name}
                     </span>
                     <div className="flex items-center gap-1">
+                        {/* Live timer during processing */}
+                        {isActive && liveElapsed > 0 && (
+                            <span className="text-yellow-400 text-[9px] animate-pulse">{formatDuration(liveElapsed)}</span>
+                        )}
                         {job.status === 'done' && job.processingMs && (
                             <span className="text-cyan-400 text-[9px]">{formatDuration(job.processingMs)}</span>
                         )}

@@ -445,6 +445,9 @@ export default function Home() {
         );
         const variations = await Promise.all(variationPromises);
 
+        // Calculate processing duration
+        const processingMs = Date.now() - startTime;
+
         // Create result with all variations for this image
         const newResult: ProcessedImageWithVariations = {
           id: job.imageFile.id,
@@ -455,10 +458,8 @@ export default function Home() {
           originalUrl: uploadedImage.url || job.imageFile.preview,
           variations: variations,
           selectedVariationId: `${job.imageFile.id}-var-0`,
+          processingMs: processingMs,
         };
-
-        // Calculate processing duration
-        const processingMs = Date.now() - startTime;
 
         // Update all generations with processing time (fire and forget)
         generationIds.forEach(genId => {
