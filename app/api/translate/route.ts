@@ -6,6 +6,16 @@ import { PROMPT_VERSION, PROMPT_VARIANTS, getLanguageName } from '@/lib/prompts'
 
 const CREDITS_PER_TRANSLATION = 1;
 
+// Type for RPC deduct_translation_credit result
+interface DeductCreditResult {
+  success: boolean;
+  error?: string;
+  available?: number;
+  required?: number;
+  generations_used?: number;
+  credits_balance?: number;
+}
+
 // Retry configuration
 const RETRY_CONFIG = {
   maxRetries: 2,                                    // 0-indexed: attempts 0, 1, 2 (total 3 attempts)
@@ -46,21 +56,26 @@ function sleep(ms: number) {
 
 /**
  * POST /api/translate
- * Process an image translation using Gemini API
+ * Process an image translation using Gemini API with atomic credit deduction
  *
  * Request body: { generation_id: string }
  *
  * Flow:
  * 1. Authenticate + verify ownership
- * 2. Check if user has enough credits
- * 3. Fetch generation (must be 'pending')
- * 4. Update status → 'processing'
- * 5. Fetch input image from Supabase Storage
- * 6. Call Gemini API with image + prompt
- * 7. Upload output image to Storage
- * 8. Create output image record
- * 9. Update generation: status='completed', output_image_id
- * 10. Deduct credits from user's subscription
+ * 2. Fetch generation (must be 'pending')
+ * 3. Update status → 'processing'
+ * 4. Fetch input image from Supabase Storage
+ * 5. Call Gemini API with image + prompt
+ * 6. Upload output image to Storage
+ * 7. Create output image record
+ * 8. Update generation: status='completed', output_image_id
+ * 9. Atomically deduct credits via RPC function (prevents race conditions)
+ *
+ * Credit Deduction:
+ * - Uses PostgreSQL function with FOR UPDATE row locking
+ * - Ensures all concurrent requests are serialized
+ * - Returns error if insufficient credits (402 Payment Required)
+ * - Includes updated credits_balance in response
  */
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
@@ -86,28 +101,6 @@ export async function POST(req: NextRequest) {
       return Response.json(
         { error: 'Supabase not configured' },
         { status: 500 }
-      );
-    }
-
-    // Check user's credits before processing
-    const { data: subscription, error: subError } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (subError || !subscription) {
-      return Response.json(
-        { error: 'Subscription not found. Please refresh the page.' },
-        { status: 402 }
-      );
-    }
-
-    const creditsBalance = subscription.generations_limit - subscription.generations_used;
-    if (creditsBalance < CREDITS_PER_TRANSLATION) {
-      return Response.json(
-        { error: `Insufficient credits. You have ${creditsBalance} credits but need ${CREDITS_PER_TRANSLATION}.` },
-        { status: 402 }
       );
     }
 
@@ -299,17 +292,23 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to update generation record');
     }
 
-    // Deduct credits from user's subscription
-    const { error: creditError } = await supabase
-      .from('subscriptions')
-      .update({
-        generations_used: subscription.generations_used + CREDITS_PER_TRANSLATION,
+    // Deduct credits using atomic database function (prevents race conditions)
+    const { data: deductResultRaw, error: creditError } = await supabase
+      .rpc('deduct_translation_credit', {
+        p_user_id: userId,
+        p_amount: CREDITS_PER_TRANSLATION,
       })
-      .eq('user_id', userId);
+      .single();
 
-    if (creditError) {
-      console.error('Failed to deduct credits:', creditError);
-      // Don't fail the request since the translation succeeded
+    const deductResult = deductResultRaw as DeductCreditResult | null;
+
+    // Check if credit deduction was successful
+    if (creditError || !deductResult?.success) {
+      const errorMsg = deductResult?.error || creditError?.message || 'Failed to deduct credits';
+      return Response.json(
+        { error: errorMsg },
+        { status: 402 }
+      );
     }
 
     // Get signed URLs for input and output images
@@ -318,14 +317,11 @@ export async function POST(req: NextRequest) {
       supabase.storage.from('images').createSignedUrl(outputPath, 3600),
     ]);
 
-    // Calculate new credits balance
-    const newCreditsBalance = subscription.generations_limit - subscription.generations_used - CREDITS_PER_TRANSLATION;
-
     return Response.json({
       generation: updatedGeneration,
       input_url: inputUrlResult.data?.signedUrl || null,
       output_url: outputUrlResult.data?.signedUrl || null,
-      credits_balance: newCreditsBalance,
+      credits_balance: deductResult.credits_balance,
     });
   } catch (error: unknown) {
     console.error('Translation error:', error);
