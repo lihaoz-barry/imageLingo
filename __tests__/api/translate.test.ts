@@ -434,6 +434,14 @@ describe('POST /api/translate', () => {
             update: mockUpdateFn,
           };
         }
+        if (table === 'error_logs') {
+          return {
+            insert: vi.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            }),
+          };
+        }
         return {};
       }),
       storage: {

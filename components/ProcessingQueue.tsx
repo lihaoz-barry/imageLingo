@@ -11,11 +11,23 @@ export interface ProcessingJob {
     totalVariations: number;
     progress: number; // 0-100
     errorMessage?: string;
+    // Error tracking fields
+    errorCode?: string; // Error code from API (e.g., RATE_LIMIT, TIMEOUT, etc.)
+    isRetryable?: boolean; // Whether this error can be retried
+    retryCount?: number; // Number of retry attempts made
+    failedVariations?: Array<{
+        variationNumber: number;
+        errorCode: string;
+        errorMessage: string;
+        isRetryable: boolean;
+        attemptNumber: number; // Which attempt failed (1, 2, 3)
+    }>;
 }
 
 interface ProcessingQueueProps {
     jobs: ProcessingJob[];
     isVisible: boolean;
+    onRetryVariation?: (jobId: string, variationNumber: number) => Promise<void>;
 }
 
 // Determine layout mode based on job count
@@ -28,7 +40,7 @@ function getLayoutMode(jobCount: number): LayoutMode {
     return 'mini';
 }
 
-export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
+export function ProcessingQueue({ jobs, isVisible, onRetryVariation }: ProcessingQueueProps) {
     if (!isVisible || jobs.length === 0) return null;
 
     const completedJobs = jobs.filter(j => j.status === 'done').length;
@@ -40,7 +52,7 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
             className="mt-6 rounded-xl backdrop-blur-md bg-white/5 border border-white/10 p-3"
             style={{
                 boxShadow: '0 0 30px rgba(0, 212, 255, 0.1)',
-                maxHeight: '200px', // Fixed max height
+                maxHeight: '400px', // Increased to show error details
             }}
         >
             {/* Header */}
@@ -57,12 +69,12 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
             {/* Jobs Container - scrollable with fixed height */}
             <div
                 className="overflow-y-auto overflow-x-hidden"
-                style={{ maxHeight: '150px' }}
+                style={{ maxHeight: '350px' }}
             >
                 {layoutMode === 'large' && (
                     <div className="space-y-2">
                         {jobs.map((job) => (
-                            <JobItemLarge key={job.id} job={job} />
+                            <JobItemLarge key={job.id} job={job} onRetryVariation={onRetryVariation} />
                         ))}
                     </div>
                 )}
@@ -70,7 +82,7 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
                 {layoutMode === 'medium' && (
                     <div className="space-y-1.5">
                         {jobs.map((job) => (
-                            <JobItemMedium key={job.id} job={job} />
+                            <JobItemMedium key={job.id} job={job} onRetryVariation={onRetryVariation} />
                         ))}
                     </div>
                 )}
@@ -78,7 +90,7 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
                 {layoutMode === 'compact' && (
                     <div className="grid grid-cols-2 gap-1.5">
                         {jobs.map((job) => (
-                            <JobItemCompact key={job.id} job={job} />
+                            <JobItemCompact key={job.id} job={job} onRetryVariation={onRetryVariation} />
                         ))}
                     </div>
                 )}
@@ -86,7 +98,7 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
                 {layoutMode === 'mini' && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-1">
                         {jobs.map((job) => (
-                            <JobItemMini key={job.id} job={job} />
+                            <JobItemMini key={job.id} job={job} onRetryVariation={onRetryVariation} />
                         ))}
                     </div>
                 )}
@@ -153,8 +165,9 @@ function getProgressBarColor(status: string) {
 }
 
 // Large layout: Full details with thumbnail, name, status, progress bar
-function JobItemLarge({ job }: { job: ProcessingJob }) {
+function JobItemLarge({ job, onRetryVariation }: { job: ProcessingJob; onRetryVariation?: (jobId: string, varNum: number) => Promise<void> }) {
     const displayProgress = useFakeProgress(job.status);
+    const [isRetrying, setIsRetrying] = useState(false);
 
     const getStatusText = () => {
         switch (job.status) {
@@ -167,46 +180,89 @@ function JobItemLarge({ job }: { job: ProcessingJob }) {
         }
     };
 
+    const handleRetry = async (variationNumber: number) => {
+        if (!onRetryVariation) return;
+        try {
+            setIsRetrying(true);
+            await onRetryVariation(job.id, variationNumber);
+        } finally {
+            setIsRetrying(false);
+        }
+    };
+
     return (
-        <div className="flex items-center gap-2 p-1.5 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
-            {/* Thumbnail */}
-            <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-white/10">
-                <img
-                    src={job.imageFile.preview}
-                    alt={job.imageFile.name}
-                    className="w-full h-full object-cover"
-                />
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                    <span className="text-white/80 text-xs truncate max-w-[140px]">
-                        {job.imageFile.name}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                        {job.status === 'done' && <span className="text-green-400 text-xs">✓</span>}
-                        {job.status === 'error' && <span className="text-red-400 text-xs">✕</span>}
-                        <span className={`text-xs ${getStatusColor(job.status)}`}>
-                            {getStatusText()}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full rounded-full transition-all duration-300 ${getProgressBarColor(job.status)}`}
-                        style={{ width: `${displayProgress}%` }}
+        <div className="flex flex-col gap-1.5 p-1.5 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
+            {/* Main job item */}
+            <div className="flex items-center gap-2">
+                {/* Thumbnail */}
+                <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-white/10">
+                    <img
+                        src={job.imageFile.preview}
+                        alt={job.imageFile.name}
+                        className="w-full h-full object-cover"
                     />
                 </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-white/80 text-xs truncate max-w-[140px]">
+                            {job.imageFile.name}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                            {job.status === 'done' && <span className="text-green-400 text-xs">✓</span>}
+                            {job.status === 'error' && <span className="text-red-400 text-xs">✕</span>}
+                            <span className={`text-xs ${getStatusColor(job.status)}`}>
+                                {getStatusText()}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                            className={`h-full rounded-full transition-all duration-300 ${getProgressBarColor(job.status)}`}
+                            style={{ width: `${displayProgress}%` }}
+                        />
+                    </div>
+                </div>
             </div>
+
+            {/* Failed variations details */}
+            {job.failedVariations && job.failedVariations.length > 0 && (
+                <div className="ml-12 space-y-1">
+                    {job.failedVariations.map((failedVar) => (
+                        <div key={`${job.id}-failed-${failedVar.variationNumber}`} className="bg-red-500/10 border border-red-500/30 rounded p-1.5">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-red-300 text-[10px] font-medium">
+                                        Variation {failedVar.variationNumber}: {failedVar.errorCode}
+                                    </span>
+                                    <p className="text-red-400/80 text-[9px] truncate">
+                                        {failedVar.errorMessage}
+                                    </p>
+                                </div>
+                                {failedVar.isRetryable && (
+                                    <button
+                                        onClick={() => handleRetry(failedVar.variationNumber)}
+                                        disabled={isRetrying}
+                                        className="flex-shrink-0 px-2 py-1 bg-cyan-500/30 hover:bg-cyan-500/50 disabled:opacity-50 text-cyan-300 text-[9px] rounded transition-colors"
+                                    >
+                                        {isRetrying ? 'Retrying...' : 'Retry'}
+                                    </button>
+                                )}
+                            </div>
+                            <span className="text-white/40 text-[8px]">Attempt {failedVar.attemptNumber}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
 
 // Medium layout: Smaller thumbnail, condensed info
-function JobItemMedium({ job }: { job: ProcessingJob }) {
+function JobItemMedium({ job, onRetryVariation }: { job: ProcessingJob; onRetryVariation?: (jobId: string, varNum: number) => Promise<void> }) {
     const displayProgress = useFakeProgress(job.status);
 
     return (
@@ -248,7 +304,7 @@ function JobItemMedium({ job }: { job: ProcessingJob }) {
 }
 
 // Compact layout: 2 columns, minimal info
-function JobItemCompact({ job }: { job: ProcessingJob }) {
+function JobItemCompact({ job, onRetryVariation }: { job: ProcessingJob; onRetryVariation?: (jobId: string, varNum: number) => Promise<void> }) {
     const displayProgress = useFakeProgress(job.status);
 
     return (
@@ -286,7 +342,7 @@ function JobItemCompact({ job }: { job: ProcessingJob }) {
 }
 
 // Mini layout: 3-4 columns, just thumbnail with overlay progress
-function JobItemMini({ job }: { job: ProcessingJob }) {
+function JobItemMini({ job, onRetryVariation }: { job: ProcessingJob; onRetryVariation?: (jobId: string, varNum: number) => Promise<void> }) {
     const displayProgress = useFakeProgress(job.status);
 
     return (

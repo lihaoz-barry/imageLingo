@@ -8,6 +8,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./__tests__/setup.ts'],
+    testTimeout: 10000, // Increase timeout for tests with retries
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
