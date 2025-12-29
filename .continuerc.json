@@ -1,0 +1,51 @@
+{
+  "mergeBehavior": "merge",
+  "slashCommands": [
+    {
+      "name": "build",
+      "description": "Run build checks and tests",
+      "prompt": "Run the following in order:\n1. npm run lint\n2. npx tsc --noEmit\n3. npm test\nReport all results and fix any errors."
+    },
+    {
+      "name": "test",
+      "description": "Write tests for selected code",
+      "prompt": "Write comprehensive tests for the selected code using Vitest. Include happy path and error cases. Follow patterns from __tests__ folder."
+    },
+    {
+      "name": "review",
+      "description": "Review code for quality and security",
+      "prompt": "Review the selected code for:\n1. TypeScript type safety\n2. Error handling\n3. Security issues\n4. Performance\n5. Test coverage\nSuggest improvements."
+    },
+    {
+      "name": "fix-lint",
+      "description": "Fix ESLint errors",
+      "prompt": "Fix all ESLint errors in the selected code without changing functionality."
+    }
+  ],
+  "rules": [
+    {
+      "rule": "Always check code quality",
+      "enforceAfterEveryEdit": true,
+      "commands": [
+        "npm run lint",
+        "npx tsc --noEmit",
+        "npm test"
+      ]
+    },
+    {
+      "rule": "Never use 'any' type",
+      "pattern": ": any",
+      "severity": "error"
+    },
+    {
+      "rule": "Always include error handling",
+      "pattern": "catch.*?\\{\\s*\\}",
+      "severity": "warning"
+    },
+    {
+      "rule": "Validate input in API routes",
+      "pattern": "export async function",
+      "requires": "input validation"
+    }
+  ]
+}
