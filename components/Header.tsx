@@ -57,16 +57,25 @@ export function Header({
           {isLoggedIn ? (
             <>
               {userAvatar ? (
-                <img src={userAvatar} alt="User" className="w-5 h-5 rounded-full" />
+                <div className="relative">
+                  <img src={userAvatar} alt="User" className="w-5 h-5 rounded-full ring-2 ring-green-400/50" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/50 sm:hidden"></span>
+                </div>
               ) : (
-                <User className="w-4 h-4" />
+                <div className="relative">
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#c026d3] flex items-center justify-center text-[10px] font-semibold text-white sm:hidden">
+                    {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/50 sm:hidden"></span>
+                  <User className="w-4 h-4 hidden sm:block" />
+                </div>
               )}
               <span className="max-w-[80px] sm:max-w-[120px] truncate hidden sm:inline">{userEmail || 'Account'}</span>
             </>
           ) : (
             <>
               <LogIn className="w-4 h-4" />
-              <span className="hidden sm:inline">Login</span>
+              <span>Login</span>
             </>
           )}
         </button>
