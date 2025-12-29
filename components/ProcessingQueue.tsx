@@ -53,24 +53,24 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
 }
 
 // Custom hook for fake progress animation
-function useFakeProgress(status: string, _realProgress: number): number {
+function useFakeProgress(status: string): number {
     const [fakeProgress, setFakeProgress] = useState(0);
 
     useEffect(() => {
-        // Reset when job starts
         if (status === 'queued') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFakeProgress(0);
             return;
         }
 
-        // Show 100% when done
         if (status === 'done') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFakeProgress(100);
             return;
         }
 
-        // Show 0% on error
         if (status === 'error') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setFakeProgress(0);
             return;
         }
@@ -99,7 +99,7 @@ function useFakeProgress(status: string, _realProgress: number): number {
 }
 
 function JobItem({ job }: { job: ProcessingJob }) {
-    const displayProgress = useFakeProgress(job.status, job.progress);
+    const displayProgress = useFakeProgress(job.status);
 
     const getStatusText = () => {
         switch (job.status) {

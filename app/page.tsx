@@ -42,8 +42,6 @@ export default function Home() {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [variationsPerImage, setVariationsPerImage] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [progressStatus, setProgressStatus] = useState('');
   const [results, setResults] = useState<ProcessedImageWithVariations[]>([]);
   const [processingJobs, setProcessingJobs] = useState<ProcessingJob[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -263,9 +261,7 @@ export default function Home() {
     }
 
     setIsProcessing(true);
-    setProgress(0);
     setResults([]);
-    setProgressStatus('Initializing...');
 
     // Demo mode: simulate processing without API calls
     if (isDemoMode) {
@@ -288,8 +284,6 @@ export default function Home() {
 
         for (const step of steps) {
           await new Promise(resolve => setTimeout(resolve, step.delay));
-          setProgress(step.progress);
-          setProgressStatus(step.status);
         }
       };
 
@@ -344,7 +338,6 @@ export default function Home() {
     }));
 
     setProcessingJobs(initialJobs);
-    setProgressStatus(`Processing ${images.length} images...`);
 
     // Helper to update a specific job's status
     const updateJob = (jobId: string, updates: Partial<ProcessingJob>) => {
@@ -471,9 +464,6 @@ export default function Home() {
       await Promise.all(jobPromises);
 
       // All jobs completed
-      setProgress(100);
-      setProgressStatus('All translations complete!');
-
       // Refresh history from server to get the new entries with correct URLs
       fetchHistory();
     } catch (error) {
