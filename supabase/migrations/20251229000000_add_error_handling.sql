@@ -36,12 +36,14 @@ ALTER TABLE public.error_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own error logs"
   ON public.error_logs
   FOR SELECT
+  TO authenticated
   USING (auth.uid() = user_id);
 
 -- 6. RLS Policy: Service role can insert error logs
 CREATE POLICY "Service role can insert error logs"
   ON public.error_logs
   FOR INSERT
+  TO service_role
   WITH CHECK (true);
 
 -- 7. Create view for error analytics
