@@ -1,5 +1,14 @@
-import { X, Calendar, Languages, Download, Trash2 } from 'lucide-react';
+import { X, Calendar, Languages, Download, Trash2, Clock } from 'lucide-react';
 import { ProcessedImage } from './ResultsGrid';
+
+// Helper function to format duration (seconds only, no milliseconds)
+function formatDuration(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
 
 export interface HistoryItem {
   id: string;
@@ -8,6 +17,7 @@ export interface HistoryItem {
   sourceLanguage: string;
   targetLanguage: string;
   tokensUsed: number;
+  processingMs?: number; // Processing duration in milliseconds
 }
 
 interface HistoryPanelProps {
@@ -80,6 +90,15 @@ export function HistoryPanel({ isOpen, onClose, history, onLoadHistory, onDelete
                       <span>{item.images.length} {item.images.length === 1 ? 'image' : 'images'}</span>
                       <span>•</span>
                       <span className="text-[#00d4ff]">{item.tokensUsed} tokens</span>
+                      {item.processingMs && (
+                        <>
+                          <span>•</span>
+                          <span className="text-[#a78bfa] flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDuration(item.processingMs)}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   
