@@ -13,7 +13,7 @@ ALTER TABLE public.generations ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMP 
 CREATE TABLE IF NOT EXISTS public.error_logs (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   generation_id       UUID NOT NULL REFERENCES public.generations(id) ON DELETE CASCADE,
-  user_id             UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id             UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   error_code          TEXT NOT NULL,                -- Error classification (RATE_LIMIT, TIMEOUT, etc.)
   error_message       TEXT NOT NULL,                -- Full error message from API
   attempt_number      INTEGER NOT NULL,             -- Which attempt failed (1, 2, 3)
