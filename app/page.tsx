@@ -373,6 +373,42 @@ export default function Home() {
 
         // Deduct tokens
         setTokenBalance(prev => Math.max(0, prev - totalCost));
+
+        // Create demo history entry from completed results
+        // We need to wait for state update, so we'll construct history from the jobs
+        const demoHistoryId = `demo-${Date.now()}`;
+        const demoHistoryImages = initialJobs.map((job, idx) => ({
+          id: `${demoHistoryId}-img-${idx}`,
+          originalName: job.imageFile.name,
+          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Chinese',
+          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'English',
+          targetLanguageCode: targetLanguage,
+          originalUrl: job.imageFile.preview,
+          processedUrl: showcaseImages[idx % showcaseImages.length],
+        }));
+
+        // Calculate total processing time (use first job's processing time)
+        const totalDemoProcessingMs = initialJobs.reduce((max, job) =>
+          Math.max(max, job.totalVariations * 6500), 0); // Approximate time
+
+        const demoHistoryItem: HistoryItem = {
+          id: demoHistoryId,
+          date: new Date().toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          images: demoHistoryImages,
+          sourceLanguage: LANGUAGE_NAMES[sourceLanguage] || 'Chinese',
+          targetLanguage: LANGUAGE_NAMES[targetLanguage] || 'English',
+          tokensUsed: totalCost,
+          processingMs: totalDemoProcessingMs,
+        };
+
+        // Add to history (prepend to show most recent first)
+        setHistory(prev => [demoHistoryItem, ...prev]);
       } catch (error) {
         console.error('Demo processing error:', error);
       }
