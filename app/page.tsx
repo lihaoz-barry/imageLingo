@@ -8,7 +8,6 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { UploadZoneWithShowcase } from '@/components/UploadZoneWithShowcase';
 import { ImageThumbnails, type ImageFile } from '@/components/ImageThumbnails';
 import { ProcessButton } from '@/components/ProcessButton';
-import { ProgressIndicator } from '@/components/ProgressIndicator';
 import { VariationSelector } from '@/components/VariationSelector';
 import { CostCalculator } from '@/components/CostCalculator';
 import { ResultsGridWithVariations, type ProcessedImageWithVariations } from '@/components/ResultsGridWithVariations';
@@ -678,10 +677,7 @@ export default function Home() {
           </div>
 
           {isProcessing && (
-            <>
-              <ProcessingQueue jobs={processingJobs} isVisible={true} />
-              <ProgressIndicator progress={progress} status={progressStatus} />
-            </>
+            <ProcessingQueue jobs={processingJobs} isVisible={true} />
           )}
         </div>
 

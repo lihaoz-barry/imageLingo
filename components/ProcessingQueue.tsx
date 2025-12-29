@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { ImageFile } from './ImageThumbnails';
 
 export interface ProcessingJob {
@@ -25,15 +26,15 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
 
     return (
         <div
-            className="rounded-xl backdrop-blur-md bg-white/5 border border-white/10 p-4 mb-6"
+            className="mt-6 rounded-xl backdrop-blur-md bg-white/5 border border-white/10 p-3"
             style={{
                 boxShadow: '0 0 30px rgba(0, 212, 255, 0.1)',
             }}
         >
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white/90 font-medium text-sm flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="text-white/90 font-medium text-xs flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                     Processing Queue
                 </h3>
                 <span className="text-white/50 text-xs">
@@ -41,8 +42,8 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
                 </span>
             </div>
 
-            {/* Jobs List */}
-            <div className="space-y-3">
+            {/* Jobs List - with max height and scroll */}
+            <div className="space-y-2 max-h-[180px] overflow-y-auto">
                 {jobs.map((job) => (
                     <JobItem key={job.id} job={job} />
                 ))}
@@ -51,7 +52,55 @@ export function ProcessingQueue({ jobs, isVisible }: ProcessingQueueProps) {
     );
 }
 
+// Custom hook for fake progress animation
+function useFakeProgress(status: string, _realProgress: number): number {
+    const [fakeProgress, setFakeProgress] = useState(0);
+
+    useEffect(() => {
+        // Reset when job starts
+        if (status === 'queued') {
+            setFakeProgress(0);
+            return;
+        }
+
+        // Show 100% when done
+        if (status === 'done') {
+            setFakeProgress(100);
+            return;
+        }
+
+        // Show 0% on error
+        if (status === 'error') {
+            setFakeProgress(0);
+            return;
+        }
+
+        // Animate progress for uploading/processing
+        if (status === 'processing' || status === 'uploading') {
+            // Target: reach ~95% in about 20 seconds
+            // Average increment: ~4% per update
+            // Average interval: ~400ms -> 50 updates in 20 seconds
+            const intervalMs = Math.random() * 300 + 300; // 300-600ms
+
+            const timer = setInterval(() => {
+                setFakeProgress(prev => {
+                    if (prev >= 95) return prev;
+                    // Randomized increment between 1.5% and 5%
+                    const increment = Math.random() * 3.5 + 1.5;
+                    return Math.min(95, prev + increment);
+                });
+            }, intervalMs);
+
+            return () => clearInterval(timer);
+        }
+    }, [status]);
+
+    return fakeProgress;
+}
+
 function JobItem({ job }: { job: ProcessingJob }) {
+    const displayProgress = useFakeProgress(job.status, job.progress);
+
     const getStatusText = () => {
         switch (job.status) {
             case 'queued':
@@ -92,9 +141,9 @@ function JobItem({ job }: { job: ProcessingJob }) {
     };
 
     return (
-        <div className="flex items-center gap-3 p-2 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
+        <div className="flex items-center gap-2 p-1.5 rounded-lg bg-white/5 hover:bg-white/[0.07] transition-colors">
             {/* Thumbnail */}
-            <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-white/10">
+            <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 bg-white/10">
                 <img
                     src={job.imageFile.preview}
                     alt={job.imageFile.name}
@@ -104,11 +153,11 @@ function JobItem({ job }: { job: ProcessingJob }) {
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                    <span className="text-white/80 text-xs truncate max-w-[150px]">
+                <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-white/80 text-xs truncate max-w-[120px]">
                         {job.imageFile.name}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         {job.status === 'done' && (
                             <span className="text-green-400 text-xs">✓</span>
                         )}
@@ -122,10 +171,10 @@ function JobItem({ job }: { job: ProcessingJob }) {
                 </div>
 
                 {/* Progress Bar */}
-                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                     <div
                         className={`h-full rounded-full transition-all duration-300 ${getProgressBarColor()}`}
-                        style={{ width: `${job.progress}%` }}
+                        style={{ width: `${displayProgress}%` }}
                     />
                 </div>
             </div>
