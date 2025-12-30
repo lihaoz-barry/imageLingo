@@ -23,6 +23,45 @@ const DEFAULT_PROJECT_NAME = 'Translations';
 
 import { LANGUAGE_NAMES, getLanguageCode } from '@/lib/languages';
 
+/**
+ * Safely parse an API response, handling non-JSON responses gracefully.
+ * Vercel WAF may return plain text "Forbidden" instead of JSON on 403 errors.
+ */
+async function safeParseResponse(response: Response): Promise<{ data: unknown; error: string | null }> {
+  const text = await response.text();
+
+  // Handle Vercel WAF blocking (returns plain "Forbidden" text)
+  if (response.status === 403) {
+    if (text.toLowerCase().includes('forbidden')) {
+      return {
+        data: null,
+        error: 'Request blocked by security firewall. This may be a temporary issue. Please try again in a few moments, or contact support if the problem persists.',
+      };
+    }
+  }
+
+  // Try to parse as JSON
+  try {
+    const data = JSON.parse(text);
+    if (!response.ok) {
+      return {
+        data,
+        error: data.error || `Request failed with status ${response.status}`,
+      };
+    }
+    return { data, error: null };
+  } catch {
+    // Not valid JSON
+    if (!response.ok) {
+      return {
+        data: null,
+        error: `Server error (${response.status}): ${text.substring(0, 100)}`,
+      };
+    }
+    return { data: text, error: null };
+  }
+}
+
 const COST_PER_IMAGE = 1; // 1 token per image variation
 
 // Demo mode check
@@ -470,12 +509,13 @@ export default function Home() {
           body: formData,
         });
 
-        if (!uploadRes.ok) {
-          const error = await uploadRes.json();
-          throw new Error(error.error || 'Failed to upload image');
+        // Use safe parsing to handle Vercel WAF 403 "Forbidden" responses
+        const uploadParsed = await safeParseResponse(uploadRes);
+        if (uploadParsed.error) {
+          throw new Error(uploadParsed.error);
         }
 
-        const { image: uploadedImage } = await uploadRes.json();
+        const { image: uploadedImage } = uploadParsed.data as { image: { id: string; url?: string } };
         updateJob(job.id, { status: 'processing', progress: 15 });
 
         // Generate variations for this image in parallel
@@ -498,12 +538,13 @@ export default function Home() {
             }),
           });
 
-          if (!genRes.ok) {
-            const error = await genRes.json();
-            throw new Error(error.error || `Failed to create generation`);
+          // Use safe parsing to handle Vercel WAF 403 "Forbidden" responses
+          const genParsed = await safeParseResponse(genRes);
+          if (genParsed.error) {
+            throw new Error(genParsed.error);
           }
 
-          const { generation: newGeneration } = await genRes.json();
+          const { generation: newGeneration } = genParsed.data as { generation: { id: string } };
           generationIds.push(newGeneration.id);
 
           // Step 3: Start translation (deducts 1 token per call)
@@ -515,12 +556,13 @@ export default function Home() {
             }),
           });
 
-          if (!translateRes.ok) {
-            const error = await translateRes.json();
-            throw new Error(error.error || `Translation failed`);
+          // Use safe parsing to handle Vercel WAF 403 "Forbidden" responses
+          const translateParsed = await safeParseResponse(translateRes);
+          if (translateParsed.error) {
+            throw new Error(translateParsed.error);
           }
 
-          const translateData = await translateRes.json();
+          const translateData = translateParsed.data as { output_url?: string; credits_balance?: number };
 
           // Calculate this variation's processing time
           const variationProcessingMs = Date.now() - variationStartTime;
