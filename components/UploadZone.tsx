@@ -35,6 +35,13 @@ export function UploadZone({ onFilesSelected }: UploadZoneProps) {
     fileInputRef.current?.click();
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
@@ -44,13 +51,18 @@ export function UploadZone({ onFilesSelected }: UploadZoneProps) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Upload images"
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`
         relative border-2 border-dashed rounded-3xl p-16 cursor-pointer
-        transition-all duration-300
+        transition-all duration-300 outline-none
+        focus-visible:ring-2 focus-visible:ring-[#00d4ff] focus-visible:ring-offset-2 focus-visible:ring-offset-black
         ${isDragging 
           ? 'border-[#00d4ff] bg-[#00d4ff]/10' 
           : 'border-[#c026d3] hover:border-[#8b5cf6] hover:bg-white/5'
