@@ -1,0 +1,3 @@
+## 2026-03-01 - [Upload Zone Keyboard Accessibility]
+**Learning:** `div`s with `onClick` handlers are completely invisible to keyboard users and screen readers unless explicitly given a `role="button"` and `tabIndex="0"`. Simply adding `onClick` is not enough for accessibility.
+**Action:** Always pair `onClick` on non-button elements with `role="button"`, `tabIndex="0"`, `onKeyDown` (for Enter/Space), and visible focus styles. Prefer using `<button>` directly where layout permits.

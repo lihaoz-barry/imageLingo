@@ -93,12 +93,24 @@ export function UploadZoneWithShowcase({
           }}
           className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#9ca3af] hover:text-white transition-colors border border-white/10 group"
           title="How it works"
+          aria-label="How it works"
         >
           <Info className="w-5 h-5 text-[#8b5cf6] group-hover:text-[#00d4ff] transition-colors" />
         </button>
 
         {/* Upload Area */}
-        <div onClick={handleClick} className="p-16 cursor-pointer">
+        <div
+          onClick={handleClick}
+          className="p-16 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00d4ff] rounded-xl"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClick();
+            }
+          }}
+        >
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="relative">
               <Camera className="w-16 h-16 text-[#8b5cf6]" strokeWidth={1.5} />
