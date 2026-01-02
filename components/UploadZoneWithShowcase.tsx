@@ -54,6 +54,13 @@ export function UploadZoneWithShowcase({
     fileInputRef.current?.click();
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
@@ -64,15 +71,20 @@ export function UploadZoneWithShowcase({
   return (
     <>
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={hasImages ? 'Add more images' : 'Upload images'}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-3xl overflow-hidden
+          relative border-2 border-dashed rounded-3xl overflow-hidden cursor-pointer outline-none
           transition-all duration-300
           ${isDragging
             ? 'border-[#00d4ff] bg-[#00d4ff]/10'
-            : 'border-[#c026d3] hover:border-[#8b5cf6]'
+            : 'border-[#c026d3] hover:border-[#8b5cf6] focus-visible:border-[#8b5cf6] focus-visible:bg-white/5 focus-visible:ring-2 focus-visible:ring-[#8b5cf6]/50'
           }
         `}
       >
@@ -98,7 +110,7 @@ export function UploadZoneWithShowcase({
         </button>
 
         {/* Upload Area */}
-        <div onClick={handleClick} className="p-16 cursor-pointer">
+        <div className="p-16">
           <div className="flex flex-col items-center justify-center gap-4">
             <div className="relative">
               <Camera className="w-16 h-16 text-[#8b5cf6]" strokeWidth={1.5} />
