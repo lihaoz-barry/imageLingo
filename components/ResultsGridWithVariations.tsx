@@ -94,11 +94,23 @@ export function ResultsGridWithVariations({
 
                   {/* Main Preview */}
                   <div
-                    className="relative aspect-video rounded-xl overflow-hidden bg-black/30 mb-4 cursor-pointer group/preview"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Preview full size image of ${result.originalName}, variation ${selectedVariation.variationNumber}`}
+                    className="relative aspect-video rounded-xl overflow-hidden bg-black/30 mb-4 cursor-pointer group/preview outline-none focus-visible:ring-2 focus-visible:ring-[#00d4ff]"
                     onClick={() => setPreviewImage({
                       url: selectedVariation.url,
                       name: `localized_${result.originalName}_v${selectedVariation.variationNumber}.png`
                     })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setPreviewImage({
+                          url: selectedVariation.url,
+                          name: `localized_${result.originalName}_v${selectedVariation.variationNumber}.png`
+                        });
+                      }
+                    }}
                   >
                     <img
                       src={selectedVariation.url}
@@ -129,6 +141,7 @@ export function ResultsGridWithVariations({
                         {result.variations.map((variation) => (
                           <button
                             key={variation.id}
+                            aria-label={`Select variation ${variation.variationNumber}`}
                             onClick={() => onSelectVariation(result.id, variation.id)}
                             className={`
                             relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all
