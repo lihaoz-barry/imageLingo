@@ -48,7 +48,8 @@ export function ImageThumbnails({ images, onRemove }: ImageThumbnailsProps) {
             
             <button
               onClick={() => onRemove(image.id)}
-              className="absolute top-2 left-2 w-6 h-6 rounded-full bg-red-500/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-500"
+              aria-label={`Remove image ${image.name}`}
+              className="absolute top-2 left-2 w-6 h-6 rounded-full bg-red-500/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-500"
             >
               <X className="w-4 h-4" />
             </button>
