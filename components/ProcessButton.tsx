@@ -20,6 +20,7 @@ export function ProcessButton({ onClick, disabled, isProcessing }: ProcessButton
           : 'hover:scale-105 hover:shadow-[0_0_40px_rgba(192,38,211,0.6)]'
         }
         ${isProcessing ? 'animate-pulse' : ''}
+        outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black/20
       `}
       style={{
         boxShadow: '0 10px 40px rgba(192, 38, 211, 0.3)',
