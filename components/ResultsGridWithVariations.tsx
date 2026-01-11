@@ -94,11 +94,23 @@ export function ResultsGridWithVariations({
 
                   {/* Main Preview */}
                   <div
-                    className="relative aspect-video rounded-xl overflow-hidden bg-black/30 mb-4 cursor-pointer group/preview"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Preview full size image for variation ${selectedVariation.variationNumber}`}
+                    className="relative aspect-video rounded-xl overflow-hidden bg-black/30 mb-4 cursor-pointer group/preview focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00d4ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f2a]"
                     onClick={() => setPreviewImage({
                       url: selectedVariation.url,
                       name: `localized_${result.originalName}_v${selectedVariation.variationNumber}.png`
                     })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setPreviewImage({
+                          url: selectedVariation.url,
+                          name: `localized_${result.originalName}_v${selectedVariation.variationNumber}.png`
+                        });
+                      }
+                    }}
                   >
                     <img
                       src={selectedVariation.url}
